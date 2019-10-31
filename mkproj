@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+
+if ! ( type -f git ) > /dev/null
+then
+  echo "Git not installed. On ubuntu type git to install."
+fi
+
+if ! ( type -f clojure ) > /dev/null
+then
+  echo "Clojure not installed. On ubuntu type clj to install."
+fi
+
+function dash-2-underscore () {
+  echo $1 | sed -e 's/-/_/g'
+}
+
+if [ -n "$1" ];then
+    project=$1
+else
+    printf "Project name: "
+    read project
+fi
+
+if [ -d $project ]; then
+  echo "Project exists."
+  exit 1
+fi
+
+projectdir=$(dash-2-underscore $project)
+mkdir -p $project/src/{clj,cljs,cljc}/$projectdir
+mkdir -p $project/resources/public/css
+mkdir -p $project/data
+
+cd $project
+
+(
+cat <<EOF
+[{:art_nr "98345NZ845-1" :aantal 123 :prijs 12.80}
+ {:art_nr "393573P234-0" :aantal 18 :prijs 42.95}]
+EOF
+) > data/articles.clj
+
+(
+cat <<EOF
+An empty project
+=============
+(when in VS code, press \`ctrl-k v\` to render this file)
+
+## What does this project deliver
+
+This project shows several things:
+
+1. Hot CSS reloading
+2. Hot code reloading
+3. RPC mechanism for biderectional websocket to back-end
+4. sample querying of CouchDB via REST interface
+5. initialized GIT repository
+6. one language for client (browser) and server code
+7. extreme small project size (±200 lines of code **and** project files, not counting README)
+8. extreme low complexity (code represents less than 100 nodes of Abstract Syntax Tree!)
+9. package entire project into 1 file (.jar) to run everywhere
+10. backend is JVM with a web-server and code meant for the server
+11. front-end code is compiled to javascript and delivered via web-server
+12. JS code size while developing: 5MB
+13. JS code size after compiling for production: 500KB
+
+## how to develop
+
+1. have an ubuntu (-derivative) system ready, or find out the rest by yourselve
+2. run \`clj\` to have Clojure installed
+3. run \`git\` to have git installed
+4. run \`code\` to have Microsoft Visual Studio Code installed
+5. run VS code and install \`calva\` plugin, no config required
+6. open this project (obviously)
+7. open your standard browser **first**
+8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
+9. change browser URL from port 9500 to 8000; nothing will show up
+10. open src/clj/$project/core.clj and click in window
+11. press \`ctrl-alt-c ctrl-alt-n\`
+12. in right pane prompt should now read $project.core
+13. type in: \`(-main)\`
+14. refresh browser
+15. any changes you save lead to immediate changes in the browser
+
+## compile for distribution
+
+1. close VS code
+2. in project directory run \`clj -Aoptimal\`
+3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
+4. package with \`clj -Auberjar\`
+5. run with \`java -cp target/$project.jar clojure.main -m $project.core\`
+6. open browser to http://localhost:8000/ and refresh if page not loading
+
+There might be a few seconds delay to start.
+If you move the jar file, keep in mind that all paths are relative to the location from where you run, e.g. if the code opening \`data/articles.clj\` is still there, you'll get an error.
+
+## Study material
+
+Lightweight intro:  
+http://maria.cloud/
+
+http://clojure.org/  
+http://clojurescript.org/  
+http://hoplon.io/  
+https://github.com/jarohen/chord  
+EOF
+) > README.md
+
+(
+cat <<EOF
+^{:css-dirs ["resources/public/css"]}
+{:main $project.core}
+EOF
+) > dev.cljs.edn
+
+(
+cat <<EOF
+{:deps {hoplon {:mvn/version "7.2.0"}
+        org.clojure/clojure {:mvn/version "1.10.1"}
+        org.clojure/clojurescript {:mvn/version "1.10.520"}
+        compojure {:mvn/version "1.6.1"}
+        cljs-http {:mvn/version "0.1.46"}
+        ring {:mvn/version "1.7.1"}
+        ring/ring-defaults {:mvn/version "0.3.2"}
+        jarohen/chord {:mvn/version "0.8.1"}
+        javax.xml.bind/jaxb-api {:mvn/version "2.3.0"}}
+ :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]
+ :aliases {:prod {:main-opts ["-m" "cljs.main" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
+           :optimal {:main-opts ["-m" "cljs.main" "-O" "advanced" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
+           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.3"}}}
+           :outdated {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
+                      :main-opts  ["-m" "depot.outdated.main" "-a" "outdated"]}
+           :uberjar {:extra-deps
+                      {com.healthfinch/depstar {:git/url "https://github.com/healthfinch/depstar.git"
+                                                :sha "4aa7b35189693feebc7d7e4a180b8af0326c9164"}}
+                     :main-opts ["-m" "hf.depstar.uberjar" "target/$project.jar"]}}}
+
+EOF
+) > deps.edn
+
+(
+cat <<EOF
+{:asset-path "/cljs-out/dev"}
+EOF
+) > cljsopts.edn
+
+(
+cat <<EOF
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset='utf-8'>
+    <title>Project ${project}</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' type='text/css' media='screen' href='css/app.css'>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+</head>
+<body>
+    <div id="app"></div>
+    <script src='cljs-out/dev-main.js'></script>
+</body>
+</html>
+EOF
+) > resources/public/index.html
+
+(
+cat <<EOF
+h1 {
+  color: #1be9df;
+}
+EOF
+) > resources/public/css/app.css
+
+(
+cat <<EOF
+target/
+.cpcache/
+.nrepl*
+EOF
+) > .gitignore
+
+(
+cat <<EOF
+(ns $project.api)
+
+(defn get-state [n]
+  {:session n :random (rand-int 100)})
+
+(def d (slurp "data/articles.clj"))
+(def v (clojure.edn/read-string d))
+(defn tb []
+  v)
+
+(into #{} (mapcat keys) v)
+EOF
+)  > src/clj/$projectdir/api.clj
+
+(
+cat <<EOF
+(ns $project.core
+  (:require [$project.handler :as handler]
+            [org.httpkit.server :refer [run-server]]
+            [$project.shared :refer [port]])
+  (:gen-class))
+
+(def server (atom nil))
+
+(defn app [port]
+  (run-server handler/app {:port port}))
+
+(defn start-server
+  "Start web-server."
+  [port]
+  (swap! server #(or % (app port))))
+
+(defn -main
+  [& args]
+  (start-server port))
+EOF
+)  > src/clj/$projectdir/core.clj
+
+(
+cat <<EOF
+(ns $project.handler
+  (:require
+   [$project.api                      :as api]
+   [chord.http-kit                 :refer [wrap-websocket-handler]]
+   [clojure.core.async             :refer [go <! >! put! close!]]
+   [compojure.core                 :refer [defroutes GET POST]]
+   [compojure.route                :refer [resources not-found]]
+   [ring.middleware.defaults       :refer [wrap-defaults api-defaults]]
+   [ring.middleware.resource       :refer [wrap-resource]]
+   [ring.middleware.session        :refer [wrap-session]]
+   [ring.middleware.session.cookie :refer [cookie-store]]
+   [ring.util.response             :refer [content-type resource-response]]))
+
+(defn castra [{:keys [ws-channel] :as req}]
+  (go
+    (let [{:keys [message error]} (<! ws-channel)
+          {:keys [type f args]} message
+          result (apply (ns-resolve '$project.api f) args)]
+      (if error
+        (println "Error ocurred:" error)
+        (if (= type :rpc)
+          (>! ws-channel result)
+          (>! ws-channel "Hello client from server!"))))))
+
+(defroutes app-routes
+  (GET "/" req
+    (-> "public/index.html"
+        (resource-response)
+        (content-type "text/html")))
+  (GET "/ws" [] (-> #'castra
+                    (wrap-websocket-handler {:format :transit-json})))
+  (resources "/")
+  (not-found "Oups! This page doesn't exist! (404 error)"))
+
+(def app
+  (-> app-routes
+      (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
+      (wrap-defaults api-defaults)
+      (wrap-resource "public")))
+EOF
+)  > src/clj/$projectdir/handler.clj
+
+(
+cat <<EOF
+(ns $project.core
+  (:require [hoplon.core :as h :refer [defelem div h1 br p text pre input button]]
+            [javelin.core :as j :refer [cell cell=]]
+            [$project.rpc :as rpc]))
+
+(defelem main [_ _]
+  (div :id "app"
+       (h1 (text "CSS+JS hot reloading"))
+       (pre (text "Back-end connection; session = ~{rpc/session-number}, random = ~{rpc/random-number}"))
+       (p (text "~{(count rpc/articles)} articles in database."))
+       (let [num (cell 0)]
+         [(text "browser access to database:")
+          (br)
+          (input :type "number" :input #(reset! num (.. % -target -value)))
+          (button :type "button" :click #(rpc/get-uuid (int @num)) "Genereer")])
+       (p (text "~{rpc/uuids}"))))
+
+(.replaceChild (.-body js/document)
+               (main) (.getElementById js/document "app"))
+EOF
+) > src/cljs/$projectdir/core.cljs
+
+(
+cat <<EOF
+(ns $project.rpc
+  (:require-macros
+   [javelin.core :refer [defc defc= cell=]]
+   [cljs.core.async.macros :refer [go go-loop]])
+  (:require
+   [$project.shared :refer [port]]
+   [javelin.core :refer [cell]]
+   [cljs-http.client :as http]
+   [chord.client :refer [ws-ch]]
+   [cljs.core.async :refer [<! >! put! chan close!]]))
+
+(defc result nil)
+(defc= session-number (:session result))
+(defc= random-number (:random result))
+
+(defc initialized? false)
+
+(defc articles nil)
+
+(defn launch-fn [cl f & args]
+  (go
+   (let [{:keys [ws-channel error]} (<! (ws-ch (str "ws://localhost:" port "/ws")
+                                               {:format :transit-json}))]
+      (if-not error
+        (>! ws-channel {:type :rpc :f f :args args})
+        (js/console.log "Error:" (pr-str error)))
+      (reset! cl (:message (<! ws-channel))))))
+
+(launch-fn articles 'tb)
+
+;; CouchDB connection
+(def db-server "127.0.0.1")
+(def db-port 5984)
+(def username "rpompen")
+(def password "Cl0jure!")
+ 
+(defc uuids nil)
+
+(defn get-uuid
+  "Returns \`n\` or 1 UUIDs in a vector."
+  [& n]
+  (go (let [result
+            (<! (http/get (str "http://" db-server ":" db-port "/_uuids"
+                               (when (seq n) (str "?count=" (first n))))
+                          {:basic-auth {:username username :password password}}))]
+        (reset! uuids (:uuids (:body result))))))
+
+#_(js/setTimeout #(go (doseq [e @articles]
+                        (let [uuid (first (:uuids (:body (<! (http/get (str "http://" db-server ":" db-port "/_uuids"))))))
+                              result (<! (http/put (str "http://" db-server ":" db-port "/$project/" uuid)
+                                                   {:json-params e
+                                                    :basic-auth
+                                                    {:username "rpompen" :password "Cl0jure!"}}))])))
+                 2000)
+
+#_(cell= (prn error))
+
+(when-not @initialized?
+  (let [session (rand-int 100)]
+    (reset! initialized? true)
+    (launch-fn result 'get-state session)
+    (js/setInterval #(launch-fn result 'get-state session) 5000)))
+EOF
+) > src/cljs/$projectdir/rpc.cljs
+
+(
+cat <<EOF
+(ns $project.shared)
+
+(def port 8000)
+EOF
+) > src/cljc/$projectdir/shared.cljc
+
+git init
+git add .
+git commit -m "Initial project"
+clojure -Aprod

@@ -74,13 +74,14 @@ This project shows several things:
 6. open this project (obviously)
 7. open your standard browser **first**
 8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. change browser URL from port 9500 to 8000; nothing will show up
-10. open src/clj/$project/core.clj and click in window
-11. press \`ctrl-alt-c ctrl-alt-n\`
-12. in right pane prompt should now read $project.core
-13. type in: \`(-main)\`
-14. refresh browser
-15. any changes you save lead to immediate changes in the browser
+9. select \`Clojure CLI + Figwheel-main\`, then no options in next dialogue
+10. change browser URL from port 9500 to 8000; nothing will show up
+11. open \`src/clj/$project/core.clj\` and click in window
+12. press \`ctrl-alt-c ctrl-alt-n\`
+13. in right pane prompt should now read $project.core
+14. type in (in right pane): \`(-main)\`
+15. refresh browser
+16. any changes you save lead to immediate changes in the browser
 
 ## compile for distribution
 
@@ -123,7 +124,7 @@ cat <<EOF
         ring {:mvn/version "1.7.1"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         jarohen/chord {:mvn/version "0.8.1"}
-        javax.xml.bind/jaxb-api {:mvn/version "2.3.0"}}
+        javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
  :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]
  :aliases {:prod {:main-opts ["-m" "cljs.main" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
            :optimal {:main-opts ["-m" "cljs.main" "-O" "advanced" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}

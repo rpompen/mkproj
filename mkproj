@@ -35,8 +35,8 @@ cd $project
 
 (
 cat <<EOF
-[{:art_nr "98345NZ845-1" :aantal 123 :prijs 12.80}
- {:art_nr "393573P234-0" :aantal 18 :prijs 42.95}]
+[{:art_nr "98345NZ845-1" :amount 123 :price 12.80}
+ {:art_nr "393573P234-0" :amount 18 :price 42.95}]
 EOF
 ) > data/articles.clj
 
@@ -91,6 +91,7 @@ This project shows several things:
 4. package with \`clj -Auberjar\`
 5. run with \`java -cp target/$project.jar clojure.main -m $project.core\`
 6. open browser to http://localhost:8000/ and refresh if page not loading
+
 
 There might be a few seconds delay to start.
 If you move the jar file, keep in mind that all paths are relative to the location from where you run, e.g. if the code opening \`data/articles.clj\` is still there, you'll get an error.
@@ -305,7 +306,7 @@ cat <<EOF
 (defc= session-number (:session result))
 (defc= random-number (:random result))
 
-(defc initialized? false)
+(defonce initialized? (cell false))
 
 (defc articles nil)
 
@@ -316,7 +317,8 @@ cat <<EOF
       (if-not error
         (>! ws-channel {:type :rpc :f f :args args})
         (js/console.log "Error:" (pr-str error)))
-      (reset! cl (:message (<! ws-channel))))))
+      (reset! cl (:message (<! ws-channel)))
+      (close! ws-channel))))
 
 (launch-fn articles 'tb)
 
@@ -344,8 +346,6 @@ cat <<EOF
                                                     :basic-auth
                                                     {:username "rpompen" :password "Cl0jure!"}}))])))
                  2000)
-
-#_(cell= (prn error))
 
 (when-not @initialized?
   (let [session (rand-int 100)]

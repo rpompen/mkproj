@@ -56,32 +56,39 @@ This project shows several things:
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
 6. one language for client (browser) and server code
-7. extreme small project size (±200 lines of code **and** project files, not counting README)
-8. extreme low complexity (code represents less than 100 nodes of Abstract Syntax Tree!)
+7. extreme low complexity (code represents less than 100 nodes of the total Abstract Syntax Tree!)
+8. extreme small project size (±200 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and code meant for the server
 11. front-end code is compiled to javascript and delivered via web-server
-12. JS code size while developing: 5MB
-13. JS code size after compiling for production: 500KB
+12. JS code size while developing: less than 6MB
+13. JS code size after compiling for production: ±550KB
+14. segmented state map using lenses (reduces events and facilitates refactoring)
 
 ## how to develop
 
-1. have an ubuntu (-derivative) system ready, or find out the rest by yourselve
-2. run \`clj\` to have Clojure installed
-3. run \`git\` to have git installed
-4. run \`code\` to have Microsoft Visual Studio Code installed
+1. have an ubuntu (-derivative) system ready, or find out the rest by yourself
+2. install \`clj\` from http://clojure.org/
+3. make sure you have git installed
+4. have Visual Studio Code installed to follow this document precisely
 5. run VS code and install \`calva\` plugin, no config required
-6. open this project (obviously)
-7. open your standard browser **first**
+6. open your standard browser **first**
+7. open this project (obviously)
 8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. select \`Clojure CLI + Figwheel-main\`, then no options in next dialogue
+9. select \`Clojure CLI + Figwheel-main\`, then no options in next dialogue  
+9b. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
 11. open \`src/clj/$project/core.clj\` and click in window
-12. press \`ctrl-alt-c ctrl-alt-n\`
-13. in right pane prompt should now read $project.core
-14. type in (in right pane): \`(-main)\`
-15. refresh browser
-16. any changes you save lead to immediate changes in the browser
+12. press \`ctrl-alt-c enter\` to compile namespace
+13. type in (in CLJ REPL): \`($project.core/-main)\`
+14. refresh browser
+15. any changes you save lead to immediate changes in the browser
+
+## using the CouchDB demo
+
+1. install CouchDB
+2. make database named \`sample\`
+3. create document with fields "type": "person", "name": "Jack", "age": 21
 
 ## compile for distribution
 
@@ -122,7 +129,7 @@ cat <<EOF
         org.clojure/clojurescript {:mvn/version "1.10.520"}
         compojure {:mvn/version "1.6.1"}
         cljs-http {:mvn/version "0.1.46"}
-        ring {:mvn/version "1.7.1"}
+        ring {:mvn/version "1.8.0"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         jarohen/chord {:mvn/version "0.8.1"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
@@ -184,16 +191,9 @@ EOF
 (
 cat <<EOF
 (ns $project.api)
+(defn get-data []
+  (clojure.edn/read-string (slurp "data/articles.clj")))
 
-(defn get-state [n]
-  {:session n :random (rand-int 100)})
-
-(def d (slurp "data/articles.clj"))
-(def v (clojure.edn/read-string d))
-(defn tb []
-  v)
-
-(into #{} (mapcat keys) v)
 EOF
 )  > src/clj/$projectdir/api.clj
 
@@ -236,7 +236,9 @@ cat <<EOF
    [ring.middleware.session.cookie :refer [cookie-store]]
    [ring.util.response             :refer [content-type resource-response]]))
 
-(defn castra [{:keys [ws-channel] :as req}]
+(defn castra
+  "Receives RPC request and calls it in api namespace."
+  [{:keys [ws-channel] :as req}]
   (go
     (let [{:keys [message error]} (<! ws-channel)
           {:keys [type f args]} message
@@ -268,24 +270,26 @@ EOF
 (
 cat <<EOF
 (ns $project.core
-  (:require [hoplon.core :as h :refer [defelem div h1 br p text pre input button]]
-            [javelin.core :as j :refer [cell cell=]]
+  (:require [hoplon.core :as h :refer [defelem div h1 br p text pre input
+                                       button label ul li nav form with-init!
+                                       with-timeout if-tpl for-tpl strong
+                                       case-tpl span a small]]
+            [javelin.core :as j :refer [cell cell= defc defc= cell-let dosync]]
             [$project.rpc :as rpc]))
 
 (defelem main [_ _]
   (div :id "app"
-       (h1 (text "CSS+JS hot reloading"))
-       (pre (text "Back-end connection; session = ~{rpc/session-number}, random = ~{rpc/random-number}"))
-       (p (text "~{(count rpc/articles)} articles in database."))
-       (let [num (cell 0)]
-         [(text "browser access to database:")
-          (br)
-          (input :type "number" :input #(reset! num (.. % -target -value)))
-          (button :type "button" :click #(rpc/get-uuid (int @num)) "Genereer")])
-       (p (text "~{rpc/uuids}"))))
+       (h1 "Sample")
+       (p "Gets data from file via JVM backend. "
+          (button :type "button" :click #(rpc/get-data) "Get data"))
+       (p (text "~{rpc/st-data}"))
+       (p "Gets items from CouchDB via REST interface. "
+          (button :type "button" :click #(rpc/get-items) "Get items"))
+       (p (text "~{(:items rpc/st-config)}"))))
 
 (.replaceChild (.-body js/document)
                (main) (.getElementById js/document "app"))
+
 EOF
 ) > src/cljs/$projectdir/core.cljs
 
@@ -297,61 +301,91 @@ cat <<EOF
    [cljs.core.async.macros :refer [go go-loop]])
   (:require
    [$project.shared :refer [port]]
-   [javelin.core :refer [cell]]
+   [javelin.core :refer [cell cell-let dosync]]
    [cljs-http.client :as http]
    [chord.client :refer [ws-ch]]
    [cljs.core.async :refer [<! >! put! chan close!]]))
 
-(defc result nil)
-(defc= session-number (:session result))
-(defc= random-number (:random result))
-
-(defonce initialized? (cell false))
-
-(defc articles nil)
-
-(defn launch-fn [cl f & args]
-  (go
-   (let [{:keys [ws-channel error]} (<! (ws-ch (str "ws://localhost:" port "/ws")
-                                               {:format :transit-json}))]
-      (if-not error
-        (>! ws-channel {:type :rpc :f f :args args})
-        (js/console.log "Error:" (pr-str error)))
-      (reset! cl (:message (<! ws-channel)))
-      (close! ws-channel))))
-
-(launch-fn articles 'tb)
-
 ;; CouchDB connection
 (def db-server "127.0.0.1")
 (def db-port 5984)
-(def username "rpompen")
-(def password "Cl0jure!")
- 
-(defc uuids nil)
+(def db-name "sample")
 
+;; RPC launcher
+(defc result nil)
+(defc error nil)
+(defc loading [])
+
+(defn launch-fn 
+  "Launches RPC call for \`f\` in backend. Return value goes into cell."
+  [f cl & args]
+  (go
+    (let [{:keys [ws-channel error]} (<! (ws-ch (str "ws://localhost:" port "/ws")
+                                                {:format :transit-json}))]
+      (if error
+        (js/console.log "Error:" (pr-str error))
+        (do
+          (>! ws-channel {:type :rpc :f f :args args})
+          (reset! cl (:message (<! ws-channel)))))
+      (close! ws-channel))))
+
+(defc uuids nil)
 (defn get-uuid
   "Returns \`n\` or 1 UUIDs in a vector."
   [& n]
   (go (let [result
             (<! (http/get (str "http://" db-server ":" db-port "/_uuids"
-                               (when (seq n) (str "?count=" (first n))))
-                          {:basic-auth {:username username :password password}}))]
+                               (when (some? n) (str "?count=" (first n))))))]
         (reset! uuids (:uuids (:body result))))))
 
-#_(js/setTimeout #(go (doseq [e @articles]
-                        (let [uuid (first (:uuids (:body (<! (http/get (str "http://" db-server ":" db-port "/_uuids"))))))
-                              result (<! (http/put (str "http://" db-server ":" db-port "/$project/" uuid)
-                                                   {:json-params e
-                                                    :basic-auth
-                                                    {:username "rpompen" :password "Cl0jure!"}}))])))
-                 2000)
+(defn query
+  "Fire Mango query to CouchDB.
+   JSON query \`m\` will be sent to DB. Result gets merged into cell \`cl\`.
 
-(when-not @initialized?
-  (let [session (rand-int 100)]
-    (reset! initialized? true)
-    (launch-fn result 'get-state session)
-    (js/setInterval #(launch-fn result 'get-state session) 5000)))
+   Output must be a hash-map.
+
+   An optional :map-fn and then :filter-fn are applied 
+   to the result set."
+  [m cl & {:keys [map-fn filter-fn agg-fn]}]
+  (go
+    (let [result
+          (<! (http/post (str "http://" db-server ":" db-port "/" db-name "/_find")
+                         {:json-params m}))]
+      (if (:success result)
+        (swap! cl merge (cond->> result
+                          true :body
+                          true :docs
+                          map-fn (mapv map-fn)
+                          filter-fn (filterv filter-fn)
+                          agg-fn agg-fn))
+        (reset! error (-> result :body))))))
+
+;; segmented state + lenses
+;; reduces load due to state modifications and allows easier refactoring
+(defonce state
+  (cell {:config {}
+         :ui {}}))
+
+;; State lenses
+(defc= st-config (:config state) #(swap! state assoc :config %))
+(defc= st-ui     (:ui state)     #(swap! state assoc :ui %))
+
+;; RPC funtions need direct lens into state, or separate cell altogether
+(defc= st-data
+  (get-in state [:config :data])  ;; getter
+  #(swap! state assoc-in [:config :data] %))  ;; setter
+
+;; RPC to backend
+;; Cell data is overwritten, not merged
+(def get-data (partial launch-fn 'get-data st-data))
+
+;; Database
+;; Uses aggregate function to return hash-map, as required for state-merging
+(def get-items (fn [] (query {"selector"
+                              {"type" "person"}
+                              "fields" ["name" "age"]}
+                             st-config :agg-fn #(hash-map :items %))))
+
 EOF
 ) > src/cljs/$projectdir/rpc.cljs
 

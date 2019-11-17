@@ -1,13 +1,20 @@
 # mkproj
 Clojure(script) project
 
-Extreme feature to loc ratio.
+Extreme feature to SLOC ratio.
 
 1. download mkproj
 2. `chmod u+x mkproj`
 3. move to place in search path
 
-This script will create a Clojure killer-app project.
+This script will create a Clojure generic client-server web-app project.
+It aims to provide a template for a scalable yet extremely simple project with all the basics for a simple and generic CRUD application.
+
+* facilitates Command Query Responsibility Segregation
+* REST interface to CouchDB
+* dependency updater
+* uberjar packager
+* 200 lines of code total
 
 The generated README.md gives a full explanation.
 

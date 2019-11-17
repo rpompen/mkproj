@@ -19,3 +19,4 @@ It aims to provide a template for a scalable yet extremely simple project with a
 The generated README.md gives a full explanation.
 
 Tip: install the `Browser preview` plugin in VS code and configure it to open http://localhost:8000/
+

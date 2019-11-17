@@ -37,13 +37,16 @@ cd $project
 cat <<EOF
 [{:art_nr "98345NZ845-1" :amount 123 :price 12.80}
  {:art_nr "393573P234-0" :amount 18 :price 42.95}]
+
 EOF
 ) > data/articles.clj
 
 (
 cat <<EOF
-An empty project
-=============
+# mkproj-demo
+
+## An empty project made by mkproj
+
 (when in VS code, press \`ctrl-k v\` to render this file)
 
 ## What does this project deliver
@@ -51,7 +54,7 @@ An empty project
 This project shows several things:
 
 1. Hot CSS reloading
-2. Hot code reloading
+2. Hot code reloading (compile-on-save, no browser reload required)
 3. RPC mechanism for biderectional websocket to back-end
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
@@ -112,6 +115,7 @@ http://clojure.org/
 http://clojurescript.org/  
 http://hoplon.io/  
 https://github.com/jarohen/chord  
+
 EOF
 ) > README.md
 
@@ -119,6 +123,7 @@ EOF
 cat <<EOF
 ^{:css-dirs ["resources/public/css"]}
 {:main $project.core}
+
 EOF
 ) > dev.cljs.edn
 
@@ -150,6 +155,7 @@ EOF
 (
 cat <<EOF
 {:asset-path "/cljs-out/dev"}
+
 EOF
 ) > cljsopts.edn
 
@@ -169,6 +175,7 @@ cat <<EOF
     <script src='cljs-out/dev-main.js'></script>
 </body>
 </html>
+
 EOF
 ) > resources/public/index.html
 
@@ -177,6 +184,7 @@ cat <<EOF
 h1 {
   color: #1be9df;
 }
+
 EOF
 ) > resources/public/css/app.css
 
@@ -185,6 +193,7 @@ cat <<EOF
 target/
 .cpcache/
 .nrepl*
+
 EOF
 ) > .gitignore
 
@@ -218,6 +227,7 @@ cat <<EOF
 (defn -main
   [& args]
   (start-server port))
+
 EOF
 )  > src/clj/$projectdir/core.clj
 
@@ -264,6 +274,7 @@ cat <<EOF
       (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
       (wrap-defaults api-defaults)
       (wrap-resource "public")))
+
 EOF
 )  > src/clj/$projectdir/handler.clj
 
@@ -394,6 +405,7 @@ cat <<EOF
 (ns $project.shared)
 
 (def port 8000)
+
 EOF
 ) > src/cljc/$projectdir/shared.cljc
 

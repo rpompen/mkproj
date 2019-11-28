@@ -131,7 +131,7 @@ EOF
 cat <<EOF
 {:deps {hoplon {:mvn/version "7.2.0"}
         org.clojure/clojure {:mvn/version "1.10.1"}
-        org.clojure/clojurescript {:mvn/version "1.10.520"}
+        org.clojure/clojurescript {:mvn/version "1.10.597"}
         compojure {:mvn/version "1.6.1"}
         cljs-http {:mvn/version "0.1.46"}
         ring {:mvn/version "1.8.0"}
@@ -162,10 +162,10 @@ EOF
 (
 cat <<EOF
 <!DOCTYPE html>
-<html lang="nl">
+<html>
 <head>
     <meta charset='utf-8'>
-    <title>Project ${project}</title>
+    <title>${project}</title>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     <link rel='stylesheet' type='text/css' media='screen' href='css/app.css'>
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
@@ -200,6 +200,7 @@ EOF
 (
 cat <<EOF
 (ns $project.api)
+
 (defn get-data []
   (clojure.edn/read-string (slurp "data/articles.clj")))
 

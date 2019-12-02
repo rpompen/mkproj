@@ -70,7 +70,7 @@ This project shows several things:
 
 ## how to develop
 
-1. have an ubuntu (-derivative) system ready, or find out the rest by yourself
+1. have a linux system ready, or find out the rest by yourself :)
 2. install \`clj\` from http://clojure.org/
 3. make sure you have git installed
 4. have Visual Studio Code installed to follow this document precisely

@@ -20,3 +20,4 @@ The generated README.md gives a full explanation.
 
 Tip: install the `Browser preview` plugin in VS code and configure it to open http://localhost:8000/
 
+©2019 Roel Pompen

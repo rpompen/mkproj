@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# ©2019 Roel Pompen
 
 if ! ( type -f git ) > /dev/null
 then
@@ -37,7 +38,6 @@ cd $project
 cat <<EOF
 [{:art_nr "98345NZ845-1" :amount 123 :price 12.80}
  {:art_nr "393573P234-0" :amount 18 :price 42.95}]
-
 EOF
 ) > data/articles.clj
 
@@ -116,6 +116,7 @@ http://clojurescript.org/
 http://hoplon.io/  
 https://github.com/jarohen/chord  
 
+©2019 Roel Pompen
 EOF
 ) > README.md
 
@@ -123,7 +124,6 @@ EOF
 cat <<EOF
 ^{:css-dirs ["resources/public/css"]}
 {:main $project.core}
-
 EOF
 ) > dev.cljs.edn
 
@@ -148,14 +148,12 @@ cat <<EOF
                       {com.healthfinch/depstar {:git/url "https://github.com/healthfinch/depstar.git"
                                                 :sha "4aa7b35189693feebc7d7e4a180b8af0326c9164"}}
                      :main-opts ["-m" "hf.depstar.uberjar" "target/$project.jar"]}}}
-
 EOF
 ) > deps.edn
 
 (
 cat <<EOF
 {:asset-path "/cljs-out/dev"}
-
 EOF
 ) > cljsopts.edn
 
@@ -175,7 +173,6 @@ cat <<EOF
     <script src='cljs-out/dev-main.js'></script>
 </body>
 </html>
-
 EOF
 ) > resources/public/index.html
 
@@ -184,7 +181,6 @@ cat <<EOF
 h1 {
   color: #1be9df;
 }
-
 EOF
 ) > resources/public/css/app.css
 
@@ -193,7 +189,6 @@ cat <<EOF
 target/
 .cpcache/
 .nrepl*
-
 EOF
 ) > .gitignore
 
@@ -201,9 +196,8 @@ EOF
 cat <<EOF
 (ns $project.api)
 
-(defn get-data []
+(defn get-file []
   (clojure.edn/read-string (slurp "data/articles.clj")))
-
 EOF
 )  > src/clj/$projectdir/api.clj
 
@@ -228,7 +222,6 @@ cat <<EOF
 (defn -main
   [& args]
   (start-server port))
-
 EOF
 )  > src/clj/$projectdir/core.clj
 
@@ -275,7 +268,6 @@ cat <<EOF
       (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
       (wrap-defaults api-defaults)
       (wrap-resource "public")))
-
 EOF
 )  > src/clj/$projectdir/handler.clj
 
@@ -293,15 +285,14 @@ cat <<EOF
   (div :id "app"
        (h1 "Sample")
        (p "Gets data from file via JVM backend. "
-          (button :type "button" :click #(rpc/get-data) "Get data"))
-       (p (text "~{rpc/st-data}"))
+          (button :type "button" :click #(rpc/get-file) "Get file"))
+       (p (text "~{rpc/file-data}"))
        (p "Gets items from CouchDB via REST interface. "
-          (button :type "button" :click #(rpc/get-items) "Get items"))
-       (p (text "~{(:items rpc/st-config)}"))))
+          (button :type "button" :click #(rpc/get-db) "Get DB"))
+       (p (text "~{rpc/db-data}"))))
 
 (.replaceChild (.-body js/document)
                (main) (.getElementById js/document "app"))
-
 EOF
 ) > src/cljs/$projectdir/core.cljs
 
@@ -354,8 +345,6 @@ cat <<EOF
   "Fire Mango query to CouchDB.
    JSON query \`m\` will be sent to DB. Result gets merged into cell \`cl\`.
 
-   Output must be a hash-map.
-
    An optional :map-fn and then :filter-fn are applied 
    to the result set."
   [m cl & {:keys [map-fn filter-fn agg-fn]}]
@@ -364,40 +353,32 @@ cat <<EOF
           (<! (http/post (str "http://" db-server ":" db-port "/" db-name "/_find")
                          {:json-params m}))]
       (if (:success result)
-        (swap! cl merge (cond->> result
-                          true :body
-                          true :docs
-                          map-fn (mapv map-fn)
-                          filter-fn (filterv filter-fn)
-                          agg-fn agg-fn))
+        (reset! cl (cond->> result
+                     true :body
+                     true :docs
+                     map-fn (mapv map-fn)
+                     filter-fn (filterv filter-fn)
+                     agg-fn agg-fn))
         (reset! error (-> result :body))))))
 
 ;; segmented state + lenses
 ;; reduces load due to state modifications and allows easier refactoring
 (defonce state
-  (cell {:config {}
-         :ui {}}))
+  (cell {}))
 
-;; State lenses
-(defc= st-config (:config state) #(swap! state assoc :config %))
-(defc= st-ui     (:ui state)     #(swap! state assoc :ui %))
-
-;; RPC funtions need direct lens into state, or separate cell altogether
-(defc= st-data
-  (get-in state [:config :data])  ;; getter
-  #(swap! state assoc-in [:config :data] %))  ;; setter
+(defc= file-data (:file-data state) #(swap! state assoc :file-data %))
+(defc= db-data   (:db-data state)   #(swap! state assoc :db-data %))
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
-(def get-data (partial launch-fn 'get-data st-data))
+(def get-file (partial launch-fn 'get-file file-data))
 
 ;; Database
 ;; Uses aggregate function to return hash-map, as required for state-merging
-(def get-items (fn [] (query {"selector"
-                              {"type" "person"}
-                              "fields" ["name" "age"]}
-                             st-config :agg-fn #(hash-map :items %))))
-
+(def get-db (fn [] (query {"selector"
+                            {"type" "person"}
+                           "fields" ["name" "age"]}
+                          db-data)))
 EOF
 ) > src/cljs/$projectdir/rpc.cljs
 
@@ -406,7 +387,6 @@ cat <<EOF
 (ns $project.shared)
 
 (def port 8000)
-
 EOF
 ) > src/cljc/$projectdir/shared.cljc
 

@@ -104,7 +104,7 @@ This project shows several things:
 
 
 There might be a few seconds delay to start.
-If you move the jar file, keep in mind that all paths are relative to the location from where you run, e.g. if the code opening \`data/items.edn\` is still there, you'll get an error.
+If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening \`data/items.edn\` is still there, you'll get an error.
 
 ## Study material
 

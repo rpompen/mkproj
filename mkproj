@@ -59,7 +59,7 @@ This project shows several things:
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
 6. one language for client (browser) and server code
-7. extreme low complexity (code represents less than 150 nodes of the total Abstract Syntax Tree!)
+7. extreme low complexity (the Abstract Syntax Tree of the code contains less than 150 nodes!)
 8. extreme small project size (±300 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and code meant for the server
@@ -433,9 +433,9 @@ cat <<EOF
 
 ;; Database
 ;; Uses aggregate function to return hash-map, as required for state-merging
-(def get-db (fn [] (query {"selector"
-                           {"type" "person"}}
-                          db-data :func (partial sort-by :name))))
+(defn get-db [] (query {"selector"
+                        {"type" "person"}}
+                       db-data :func (partial sort-by :name)))
 
 (defn add-db [name age] (doc-add {"type" "person"
                                   "name" name

@@ -163,15 +163,15 @@ cat <<EOF
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
     <title>${project}</title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <link rel='stylesheet' type='text/css' media='screen' href='css/app.css'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="css/app.css">
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
 <body>
     <div id="app"></div>
-    <script src='cljs-out/dev-main.js'></script>
+    <script src="cljs-out/dev-main.js"></script>
 </body>
 </html>
 EOF
@@ -238,6 +238,8 @@ cat <<EOF
    [ring.middleware.defaults       :refer [wrap-defaults api-defaults]]
    [ring.middleware.resource       :refer [wrap-resource]]
    [ring.middleware.session        :refer [wrap-session]]
+   [ring.middleware.not-modified   :refer [wrap-not-modified]]
+   [ring.middleware.content-type   :refer [wrap-content-type]]
    [ring.middleware.session.cookie :refer [cookie-store]]
    [ring.util.response             :refer [content-type resource-response]]))
 
@@ -268,7 +270,10 @@ cat <<EOF
   (-> app-routes
       (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
       (wrap-defaults api-defaults)
-      (wrap-resource "public")))
+      (wrap-resource "public")
+      (wrap-resource "public")
+      (wrap-content-type)
+      (wrap-not-modified)))
 EOF
 )  > src/clj/$projectdir/handler.clj
 
@@ -278,39 +283,42 @@ cat <<EOF
   (:require [hoplon.core :as h :refer [defelem div h1 br p text pre input
                                        button label ul li nav form with-init!
                                        with-timeout if-tpl for-tpl strong
-                                       case-tpl span a small fieldset]]
+                                       case-tpl span a small fieldset legend]]
             [javelin.core :as j :refer [cell cell= defc defc= cell-let dosync]]
             [$project.rpc :as rpc]))
 
 (defelem main [_ _]
   (div :id "app"
        (h1 "Sample")
-       (p "Gets data from file via JVM backend. "
-          (button :type "button" :click #(rpc/get-file) "Get file"))
+       "Gets data from file via JVM backend. "
+       (button :type "button" :click #(rpc/get-file) "Get file")
        (p (text "~{rpc/file-data}"))
-       (p "Gets items from CouchDB via REST interface. "
-          (button :type "button" :click #(rpc/get-db) "Get DB"))
-       (p (for-tpl [{id :_id name :name age :age} rpc/db-data]
-                   (fieldset
-                    (input :type "text" :value name :disabled true)
-                    (input :type "text" :value age :disabled true)
-                    (button :type "button" :click #(rpc/del-db @id) "Erase"))))
-       (p (fieldset 
-           (let [name (cell nil)
-                 age (cell nil)]
-            [(label "New person")(br)
-             (input :type "text" :placeholder "name"
-                    :keyup #(reset! name (.. % -target -value))
-                    :focus #(set! (.. % -target -value) @name))
-             (input :type "number" :placeholder "age"
-                    :keyup #(reset! age (int (.. % -target -value)))
-                    :focus #(set! (.. % -target -value) @age))
-             (button :type "button"
-                     :click (fn []
-                              (rpc/add-db @name @age)
-                              (reset! name nil)
-                              (reset! age nil))
-                     "Add")])))))
+       "Gets items from CouchDB via REST interface. "
+       (button :type "button" :click #(rpc/get-db) "Get DB")
+       (form
+        (fieldset
+         (legend "People")
+         (for-tpl [{id :_id name :name age :age} rpc/db-data]
+                  (div
+                   (input :type "text" :value name :disabled true)
+                   (input :type "text" :value age :disabled true)
+                   (button :type "button" :click #(rpc/del-db @id) "Erase"))))
+        (let [name (cell nil)
+              age (cell nil)]
+          (fieldset
+           (legend "New person")
+           (input :type "text" :placeholder "name"
+                  :change #(reset! name (.. % -target -value))
+                  :focus #(set! (.. % -target -value) nil))
+           (input :type "number" :placeholder "age"
+                  :change #(reset! age (int (.. % -target -value)))
+                  :focus #(set! (.. % -target -value) nil))
+           (button :type "button"
+                   :click (fn []
+                            (rpc/add-db @name @age)
+                            (reset! name nil)
+                            (reset! age nil))
+                   "Add"))))))
 
 (.replaceChild (.-body js/document)
                (main) (.getElementById js/document "app"))

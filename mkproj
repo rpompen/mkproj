@@ -271,7 +271,6 @@ cat <<EOF
       (wrap-session {:store (cookie-store {:key "a 16-byte secret"})})
       (wrap-defaults api-defaults)
       (wrap-resource "public")
-      (wrap-resource "public")
       (wrap-content-type)
       (wrap-not-modified)))
 EOF

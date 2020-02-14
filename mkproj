@@ -59,7 +59,7 @@ This project shows several things:
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains less than 150 nodes!)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just over 160 nodes!)
 8. extreme small project size (±300 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and code meant for the server

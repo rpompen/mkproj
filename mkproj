@@ -47,7 +47,7 @@ cat <<EOF
 
 ## An empty project made by mkproj
 
-(when in VS code, press \`ctrl-k v\` to render this file)
+(when in VS code, press  \`ctrl-k v\` to render this file)
 
 ## What does this project deliver
 
@@ -62,51 +62,57 @@ This project shows several things:
 7. extremely low complexity (the Abstract Syntax Tree of the code contains just over 160 nodes!)
 8. extreme small project size (±300 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
-10. backend is JVM with a web-server and code meant for the server
-11. front-end code is compiled to javascript and delivered via web-server
+10. backend is JVM with a web-server and server-side code
+11. front-end code is compiled to javascript and delivered via JVM web-server
 12. JS code size while developing: less than 6MB
-13. JS code size after compiling for production: ±550KB
+13. JS code size after compiling for production: ±550KB (less than 140KB gzipped)
 14. segmented state map using lenses (reduces events and facilitates refactoring)
 15. paginated DB access
 
 ## how to develop
 
 1. have a linux system ready, or find out the rest by yourself :)
-2. install \`clj\` from http://clojure.org/
+2. install  \`clj\` from http://clojure.org/
 3. make sure you have git installed
 4. have Visual Studio Code installed to follow this document precisely
-5. run VS code and install \`calva\` plugin, no config required
+5. run VS code and install  \`calva\` plugin, no config required
 6. open your standard browser **first**
 7. open this project (obviously)
-8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. select \`Clojure CLI + Figwheel-main\`, then no options in next dialogue  
+8. **then** start project with  \`ctrl-alt-c ctrl-alt-j\`
+9. select  \`Clojure CLI + Figwheel-main\`, then no options in next dialogue  
 9b. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
-11. open \`src/clj/$project/core.clj\` and click in window
-12. press \`ctrl-alt-c enter\` to compile namespace
-13. type in (in CLJ REPL): \`($project.core/-main)\`
+11. open  \`src/clj/$project/core.clj\` and click in window
+12. press  \`ctrl-alt-c enter\` to compile namespace
+13. type in (in CLJ REPL):  \`($project.core/-main)\`
 14. refresh browser
 15. any changes you save lead to immediate changes in the browser
 
 ## using the CouchDB demo
 
 1. install CouchDB
-2. make database named \`sample\`
+2. make database named  \`sample\`
 3. create document with fields "type": "person", "name": "Jack", "age": 21
-4. enable CORS in settings
+4. create index (for sorting) on "name"
+5. enable CORS in settings
 
 ## compile for distribution
 
 1. close VS code
-2. in project directory run \`clj -Aoptimal\`
-3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
-4. package with \`clj -Auberjar\`
-5. run with \`java -cp target/$project.jar clojure.main -m $project.core\`
+2. in project directory run  \`clj -Aoptimal\`
+3. delete extraneous files:  \`rm -rf target/public/cljs-out/dev\`
+4. package with  \`clj -Auberjar\`
+5. run with  \`java -cp target/$project.jar clojure.main -m $project.core\`
 6. open browser to http://localhost:8000/ and refresh if page not loading
 
 
 There might be a few seconds delay to start.
-If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening \`data/items.edn\` is still there, you'll get an error.
+If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening  \`data/items.edn\` is still there, you'll get an error.
+
+## Check for outdated dependencies
+
+Run  \`clj -Auberjar\` from the project directory.
+A table of suggested updates (to be put in deps.edn) might be shown.
 
 ## Study material
 
@@ -294,13 +300,13 @@ cat <<EOF
        (button :type "button" :click #(rpc/get-file) "Get file")
        (p (text "~{rpc/file-data}"))
        "Gets items from CouchDB via REST interface. "
-       (for-tpl [p (cell= (range 1 (+ 2 rpc/people-page-next)))]
+       (for-tpl [p (cell= (range 1 (+ 2 rpc/people-next)))]
                 (button :type "button" 
-                        :click #(rpc/people :page (dec @p)) p))
+                        :click #(rpc/get-people :page (dec @p)) p))
        (form
         (fieldset
          (legend "People")
-         (for-tpl [{id :_id name :name age :age} rpc/people-page]
+         (for-tpl [{id :_id name :name age :age} rpc/people]
                   (div
                    (input :type "text" :value name :disabled true)
                    (input :type "text" :value age :disabled true)
@@ -355,7 +361,7 @@ cat <<EOF
 (defc error nil)
 
 (defn launch-fn 
-  "Launches RPC call for \`f\` in backend. Return value goes into cell."
+  "Launches RPC call for  \`f\` in backend. Return value goes into cell."
   [f cl & args]
   (go
     (let [{:keys [ws-channel error]} (<! (ws-ch (str "ws://localhost:" port "/ws")
@@ -371,7 +377,7 @@ cat <<EOF
 (defc uuids nil)
 
 (defn get-uuid
-  "Returns \`n\` or 1 UUIDs in a vector."
+  "Returns  \`n\` or 1 UUIDs in a vector."
   [& n]
   (go (let [result
             (<! (http/get (str "http://" db-server ":" db-port "/_uuids"
@@ -398,37 +404,37 @@ cat <<EOF
    Default page size is 25.
 
    The closure allows for previous pages to be requested, using \`:page\`.
-   No argument returns first or most recent page. Setting \`:next-page\` returns next available page.
-   Page list can be cleared by setting \`:clear-pages\` flag."
-  ([m cl npg] (query m cl 25))
+   No argument returns first or most recent page. Page list can be cleared
+   by setting \`:clear-pages\` flag, to be used after modifying data."
+  ([m cl npg] (query m cl npg 25))
   ([m cl npg page-size]
    (let [pages (cell [])
          curpage (cell 0)] 
-     (fn redo [& {:keys [page clear-pages next-page]}]
-       (cond
-         clear-pages (do (reset! pages []) (redo))
-         :else (go
-                 (let [_ (when (some? page) (reset! curpage page))
-                       result (<! (http/post urlq {:json-params
-                                                   (merge (cond
-                                                            (and (some? page) (== 0 page)) m
-                                                            (and (some? page) clear-pages) m
-                                                            (some? page) (assoc m :bookmark (nth @pages (dec page)))
-                                                            (seq @pages) (assoc m :bookmark (nth @pages (dec @curpage)))
-                                                            :else m)
-                                                          {:limit page-size})}))
-                       next-page (-> result :body :bookmark)
-                       next-page-number (if (or (contains? (set @pages) next-page) (< (count (-> result :body :docs)) page-size))
-                                          (count @pages)
-                                          (inc (count @pages)))]
-                   (if (:success result)
-                     (do
-                       (when (and (== (count (-> result :body :docs)) page-size)
-                                  (not (contains? (set @pages) next-page)))
-                         (swap! pages conj next-page))
-                       (reset! cl (-> result :body :docs))
-                       (reset! npg next-page-number))
-                     (reset! error (:body result))))))))))
+     (fn redo [& {:keys [page clear-pages]}]
+       (if clear-pages
+         (do (reset! pages []) (redo))
+         (go
+           (let [_ (when (some? page) (reset! curpage page))
+                 result (<! (http/post urlq {:json-params
+                                             (merge (cond
+                                                      (and (some? page) (== 0 page)) m
+                                                      (and (some? page) clear-pages) m
+                                                      (some? page) (assoc m :bookmark (nth @pages (dec page)))
+                                                      (seq @pages) (assoc m :bookmark (nth @pages (dec @curpage)))
+                                                      :else m)
+                                                    {:limit page-size})}))
+                 next-page (-> result :body :bookmark)
+                 next-page-number (if (or (contains? (set @pages) next-page) (< (count (-> result :body :docs)) page-size))
+                                    (count @pages)
+                                    (inc (count @pages)))]
+             (if (:success result)
+               (do
+                 (when (and (== (count (-> result :body :docs)) page-size)
+                            (not (contains? (set @pages) next-page)))
+                   (swap! pages conj next-page))
+                 (reset! cl (-> result :body :docs))
+                 (reset! npg next-page-number))
+               (reset! error (:body result))))))))))
 
 ;;; UPDATE
 (defn doc-update
@@ -459,25 +465,26 @@ cat <<EOF
   (cell {}))
 
 (defc= file-data   (:file-data   state) #(swap! state assoc :file-data %))
-(defc= people-page (:people-page state) #(swap! state assoc :people-page %))
-(defc people-page-next 0)
+(defc= people (:people state) #(swap! state assoc :people %))
+(defc people-next 0)
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
 (defn get-file [] (launch-fn 'get-file file-data))
 
 ;; Database
-(def people (query {"selector"
-                    {"type" "person"}}
-                   people-page people-page-next 4))
+(def get-people (query {"selector"
+                        {"type" "person"}
+                        "sort" [{"name" "asc"}]}
+                       people people-next 4))
 
 (defn add-db [name age] (doc-add {"type" "person"
                                   "name" name
-                                  "age" age} #(people :clear-pages true)))
+                                  "age" age} #(get-people :clear-pages true)))
 
-(defn del-db [id] (doc-delete id #(people :clear-pages true)))
+(defn del-db [id] (doc-delete id #(get-people :clear-pages true)))
 
-(people)
+(get-people)
 EOF
 ) > src/cljs/$projectdir/rpc.cljs
 

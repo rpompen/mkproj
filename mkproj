@@ -399,7 +399,7 @@ cat <<EOF
    An optional funtion \`:func\` is applied to the result set.
    \`page\` is the page number to get. \`pages\` is a hash-map containing result.
    Initialize that map as nil."
-  [m cl & {:keys [func page-size page pages] :or {func identity page-size 25}}]
+  [m cl & {:keys [func page-size page pages] :or {func identity page-size 25 pages (cell :none)}}]
   (go
     (let [result
           (<! (http/post urlq
@@ -409,14 +409,14 @@ cat <<EOF
                                                       (= page 0)) nil
                                                   (get-in @pages [:bookmarks page]))})}))
           next-bookmark (-> result :body :bookmark)]
-      (when (nil? @pages) (reset! pages {:bookmarks {0 nil}}))
+      (when (= @pages {}) (reset! pages {:bookmarks {0 nil}}))
       (if (:success result)
         (do (reset! cl (-> result :body :docs func))
-            (when (and pages
+            (when (and (not= @pages :none)
                        (not (-> @pages :bookmarks vals set (contains? next-bookmark))))
               (swap! pages assoc-in [:bookmarks (inc page)]
                      next-bookmark))
-            (swap! pages assoc :curpage (or page 0)))
+            (when (not= @pages :none) (swap! pages assoc :curpage (or page 0))))
         (reset! error (:body result))))))
 
 ;;; UPDATE

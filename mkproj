@@ -47,7 +47,7 @@ cat <<EOF
 
 ## An empty project made by mkproj
 
-(when in VS code, press  \`ctrl-k v\` to render this file)
+(when in VS code, press \`ctrl-k v\` to render this file)
 
 ## What does this project deliver
 
@@ -59,7 +59,7 @@ This project shows several things:
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains just over 160 nodes!)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 160 nodes!)
 8. extreme small project size (±300 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
@@ -72,26 +72,26 @@ This project shows several things:
 ## how to develop
 
 1. have a linux system ready, or find out the rest by yourself :)
-2. install  \`clj\` from http://clojure.org/
+2. install \`clj\` from http://clojure.org/
 3. make sure you have git installed
 4. have Visual Studio Code installed to follow this document precisely
-5. run VS code and install  \`calva\` plugin, no config required
+5. run VS code and install \`calva\` plugin, no config required
 6. open your standard browser **first**
 7. open this project (obviously)
-8. **then** start project with  \`ctrl-alt-c ctrl-alt-j\`
-9. select  \`Clojure CLI + Figwheel-main\`, then no options in next dialogue  
+8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
+9. select \`Clojure CLI + Figwheel-main\`, then no options in next dialogue  
 9b. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
-11. open  \`src/clj/$project/core.clj\` and click in window
-12. press  \`ctrl-alt-c enter\` to compile namespace
-13. type in (in CLJ REPL):  \`($project.core/-main)\`
+11. open \`src/clj/$project/core.clj\` and click in window
+12. press \`ctrl-alt-c enter\` to compile namespace
+13. type in (in CLJ REPL): \`($project.core/-main)\`
 14. refresh browser
 15. any changes you save lead to immediate changes in the browser
 
 ## using the CouchDB demo
 
 1. install CouchDB
-2. make database named  \`sample\`
+2. make database named \`sample\`
 3. create document with fields "type": "person", "name": "Jack", "age": 21
 4. create index (for sorting) on "name"
 5. enable CORS in settings
@@ -99,19 +99,19 @@ This project shows several things:
 ## compile for distribution
 
 1. close VS code
-2. in project directory run  \`clj -Aoptimal\`
-3. delete extraneous files:  \`rm -rf target/public/cljs-out/dev\`
-4. package with  \`clj -Auberjar\`
-5. run with  \`java -cp target/$project.jar clojure.main -m $project.core\`
+2. in project directory run \`clj -Aoptimal\`
+3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
+4. package with \`clj -Auberjar\`
+5. run with \`java -cp target/$project.jar clojure.main -m $project.core\`
 6. open browser to http://localhost:8000/ and refresh if page not loading
 
 
 There might be a few seconds delay to start.
-If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening  \`data/items.edn\` is still there, you'll get an error.
+If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening \`data/items.edn\` is still there, you'll get an error.
 
 ## Check for outdated dependencies
 
-Run  \`clj -Aoutdated\` from the project directory.
+Run \`clj -Aoutdated\` from the project directory.
 A table of suggested updates (to be put in deps.edn) might be shown.
 
 ## Study material
@@ -299,13 +299,12 @@ cat <<EOF
        "Gets data from file via JVM backend. "
        (button :type "button" :click #(rpc/get-file) "Get file")
        (p (text "~{rpc/file-data}"))
-       "Gets items from CouchDB via REST interface. "
-       (for-tpl [p (cell= (range 1 (+ 2 rpc/people-next)))]
-                (button :type "button" 
-                        :click #(rpc/get-people :page (dec @p)) p))
+       (text "Gets items from CouchDB via REST interface. ~{(:curpage rpc/people-pages)}")
        (form
         (fieldset
-         (legend "People")
+         (legend "People " (for-tpl [[page data] (cell= (:bookmarks rpc/people-pages))]
+                                    (button :type "button"
+                                            :click #(rpc/get-people @page) page)))
          (for-tpl [{id :_id name :name age :age} rpc/people]
                   (div
                    (input :type "text" :value name :disabled true)
@@ -340,16 +339,13 @@ cat <<EOF
    [javelin.core :refer [defc defc= cell=]]
    [cljs.core.async.macros :refer [go go-loop]])
   (:require
-   [$project.shared :refer [port]]
+   [$project.shared :refer [port server db-port db-server db-name]]
    [javelin.core :refer [cell cell-let dosync]]
    [cljs-http.client :as http]
    [chord.client :refer [ws-ch]]
    [cljs.core.async :refer [<! >! put! chan close!]]))
 
 ;; CouchDB connection
-(def db-server "127.0.0.1")
-(def db-port 5984)
-(def db-name "sample")
 (def urls (str "http://" db-server ":" db-port "/"))
 (def urld (str urls db-name))
 (def urlq (str urld "/_find"))
@@ -361,10 +357,10 @@ cat <<EOF
 (defc error nil)
 
 (defn launch-fn 
-  "Launches RPC call for  \`f\` in backend. Return value goes into cell."
+  "Launches RPC call for \`f\` in backend. Return value goes into cell."
   [f cl & args]
   (go
-    (let [{:keys [ws-channel error]} (<! (ws-ch (str "ws://localhost:" port "/ws")
+    (let [{:keys [ws-channel error]} (<! (ws-ch (str "ws://" server ":" port "/ws")
                                                 {:format :transit-json}))]
       (if error
         (js/console.log "Error:" (pr-str error))
@@ -377,7 +373,7 @@ cat <<EOF
 (defc uuids nil)
 
 (defn get-uuid
-  "Returns  \`n\` or 1 UUIDs in a vector."
+  "Returns \`n\` or 1 UUIDs in a vector."
   [& n]
   (go (let [result
             (<! (http/get (str "http://" db-server ":" db-port "/_uuids"
@@ -397,44 +393,31 @@ cat <<EOF
         (cb))))
 
 ;;; RETRIEVE
-;; Creates a closure for pagination state
 (defn query
-  "Build a Mango query to CouchDB as a closure retaining page state. JSON query \`m\` will be sent to DB.
-   Cell \`cl\` will contain result page. Cell \`npg\` will contain next available page number.
-   Default page size is 25.
-
-   The closure allows for previous pages to be requested, using \`:page\`.
-   No argument returns first or most recent page. Page list can be cleared
-   by setting \`:clear-pages\` flag, to be used after modifying data."
-  ([m cl npg] (query m cl npg 25))
-  ([m cl npg page-size]
-   (let [pages (cell [])
-         curpage (cell 0)] 
-     (fn redo [& {:keys [page clear-pages]}]
-       (if clear-pages
-         (do (reset! pages []) (redo))
-         (go
-           (let [_ (when (some? page) (reset! curpage page))
-                 result (<! (http/post urlq {:json-params
-                                             (merge (cond
-                                                      (and (some? page) (== 0 page)) m
-                                                      (and (some? page) clear-pages) m
-                                                      (some? page) (assoc m :bookmark (nth @pages (dec page)))
-                                                      (seq @pages) (assoc m :bookmark (nth @pages (dec @curpage)))
-                                                      :else m)
-                                                    {:limit page-size})}))
-                 next-page (-> result :body :bookmark)
-                 next-page-number (if (or (contains? (set @pages) next-page) (< (count (-> result :body :docs)) page-size))
-                                    (count @pages)
-                                    (inc (count @pages)))]
-             (if (:success result)
-               (do
-                 (when (and (== (count (-> result :body :docs)) page-size)
-                            (not (contains? (set @pages) next-page)))
-                   (swap! pages conj next-page))
-                 (reset! cl (-> result :body :docs))
-                 (reset! npg next-page-number))
-               (reset! error (:body result))))))))))
+  "Fire Mango query to CouchDB.
+   JSON query \`m\` will be sent to DB. Result gets sent to cell \`cl\`.
+   An optional funtion \`:func\` is applied to the result set.
+   \`page\` is the page number to get. \`pages\` is a hash-map containing result.
+   Initialize that map as nil."
+  [m cl & {:keys [func page-size page pages] :or {func identity page-size 25}}]
+  (go
+    (let [result
+          (<! (http/post urlq
+                         {:json-params
+                          (merge m {:limit page-size
+                                    :bookmark (if (or (nil? page)
+                                                      (= page 0)) nil
+                                                  (get-in @pages [:bookmarks page]))})}))
+          next-bookmark (-> result :body :bookmark)]
+      (when (nil? @pages) (reset! pages {:bookmarks {0 nil}}))
+      (if (:success result)
+        (do (reset! cl (-> result :body :docs func))
+            (when (and pages
+                       (not (-> @pages :bookmarks vals set (contains? next-bookmark))))
+              (swap! pages assoc-in [:bookmarks (inc page)]
+                     next-bookmark))
+            (swap! pages assoc :curpage (or page 0)))
+        (reset! error (:body result))))))
 
 ;;; UPDATE
 (defn doc-update
@@ -466,23 +449,34 @@ cat <<EOF
 
 (defc= file-data   (:file-data   state) #(swap! state assoc :file-data %))
 (defc= people (:people state) #(swap! state assoc :people %))
-(defc people-next 0)
+(defc  people-pages nil)
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
 (defn get-file [] (launch-fn 'get-file file-data))
 
 ;; Database
-(def get-people (query {"selector"
-                        {"type" "person"}
-                        "sort" [{"name" "asc"}]}
-                       people people-next 4))
+
+(defn get-people
+  [& [page]]
+  (query {"selector"
+          {"type" "person"}
+          "sort" [{"name" "asc"}]}
+         people
+         :func (partial sort-by :name)
+         :page-size 4
+         :pages people-pages
+         :page  page))
 
 (defn add-db [name age] (doc-add {"type" "person"
                                   "name" name
-                                  "age" age} #(get-people :clear-pages true)))
+                                  "age" age} (fn []
+                                               (reset! people-pages nil)
+                                               (js/setTimeout get-people 500))))
 
-(defn del-db [id] (doc-delete id #(get-people :clear-pages true)))
+(defn del-db [id] (doc-delete id (fn []
+                                   (reset! people-pages nil)
+                                   (js/setTimeout get-people 500))))
 
 (get-people)
 EOF
@@ -492,7 +486,12 @@ EOF
 cat <<EOF
 (ns $project.shared)
 
+(def server "localhost")
 (def port 8000)
+
+(def db-server "127.0.0.1")
+(def db-port 5984)
+(def db-name "sample")
 EOF
 ) > src/cljc/$projectdir/shared.cljc
 

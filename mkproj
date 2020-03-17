@@ -304,7 +304,7 @@ cat <<EOF
         (fieldset
          (legend "People " (for-tpl [[page data] (cell= (:bookmarks rpc/people-pages))]
                                     (button :type "button"
-                                            :click #(rpc/get-people @page) page)))
+                                            :click #(rpc/get-people @page) (cell= (inc page)))))
          (for-tpl [{id :_id name :name age :age} rpc/people]
                   (div
                    (input :type "text" :value name :disabled true)
@@ -397,7 +397,7 @@ cat <<EOF
   "Fire Mango query to CouchDB.
    JSON query \`m\` will be sent to DB. Result gets sent to cell \`cl\`.
    An optional funtion \`:func\` is applied to the result set.
-   \`page\` is the page number to get. \`pages\` is a hash-map containing result.
+   \`page\` is the page number to get. \`pages\` is a hash-map containing bookmarks.
    Initialize that map as nil."
   [m cl & {:keys [func page-size page pages] :or {func identity page-size 25 pages (cell :none)}}]
   (go
@@ -449,7 +449,7 @@ cat <<EOF
 
 (defc= file-data   (:file-data   state) #(swap! state assoc :file-data %))
 (defc= people (:people state) #(swap! state assoc :people %))
-(defc  people-pages nil)
+(defc  people-pages {:bookmarks {0 nil}})
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
@@ -471,11 +471,11 @@ cat <<EOF
 (defn add-db [name age] (doc-add {"type" "person"
                                   "name" name
                                   "age" age} (fn []
-                                               (reset! people-pages nil)
+                                               (reset! people-pages {:bookmarks {0 nil}})
                                                (js/setTimeout get-people 500))))
 
 (defn del-db [id] (doc-delete id (fn []
-                                   (reset! people-pages nil)
+                                   (reset! people-pages {:bookmarks {0 nil}})
                                    (js/setTimeout get-people 500))))
 
 (get-people)
@@ -486,10 +486,10 @@ EOF
 cat <<EOF
 (ns $project.shared)
 
-(def server "localhost")
+(def server "rpompen-lt")
 (def port 8000)
 
-(def db-server "127.0.0.1")
+(def db-server "rpompen-lt")
 (def db-port 5984)
 (def db-name "sample")
 EOF

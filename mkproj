@@ -101,9 +101,10 @@ This project shows several things:
 1. close VS code
 2. in project directory run \`clj -Aoptimal\`
 3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
-4. package with \`clj -Auberjar\`
-5. run with \`java -cp target/$project.jar clojure.main -m $project.core\`
-6. open browser to http://localhost:8000/ and refresh if page not loading
+4. generate pom.xml with \`clj -Spom\`
+5. package with \`clj -Auberjar\`
+6. run with \`java -cp target/$project.jar clojure.main -m $project.core\`
+7. open browser to http://localhost:8000/ and refresh if page not loading
 
 
 There might be a few seconds delay to start.
@@ -153,7 +154,7 @@ cat <<EOF
            :outdated {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
                       :main-opts  ["-m" "depot.outdated.main" "-a" "outdated"]}
            :uberjar {:extra-deps
-                      {seancorfield/depstar {:mvn/version "1.0.94"}
+                      {seancorfield/depstar {:mvn/version "1.0.94"}}
                      :main-opts ["-m" "hf.depstar.uberjar" "target/$project.jar" "-C" "-m" "$project.core"]}}}
 EOF
 ) > deps.edn

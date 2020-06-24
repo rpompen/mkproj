@@ -198,6 +198,7 @@ cat <<EOF
 target/
 .cpcache/
 .nrepl*
+pom.xml
 EOF
 ) > .gitignore
 

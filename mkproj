@@ -144,6 +144,7 @@ cat <<EOF
         compojure {:mvn/version "1.6.1"}
         cljs-http {:mvn/version "0.1.46"}
         ring {:mvn/version "1.8.1"}
+        ring-cors {:mvn/version "0.1.13"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         jarohen/chord {:mvn/version "0.8.1"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
@@ -236,7 +237,8 @@ EOF
 cat <<EOF
 (ns $project.handler
   (:require
-   [$project.api                   :as api]
+   [$project.api                :as api]
+   [$project.shared             :refer [server port]]
    [chord.http-kit                 :refer [wrap-websocket-handler]]
    [clojure.core.async             :refer [go <! >!]]
    [compojure.core                 :refer [defroutes GET]]
@@ -247,7 +249,8 @@ cat <<EOF
    [ring.middleware.not-modified   :refer [wrap-not-modified]]
    [ring.middleware.content-type   :refer [wrap-content-type]]
    [ring.middleware.session.cookie :refer [cookie-store]]
-   [ring.util.response             :refer [content-type resource-response]]))
+   [ring.util.response             :refer [content-type resource-response]]
+   [ring.middleware.cors           :refer [wrap-cors]]))
 
 (defn castra
   "Receives RPC request and calls it in api namespace."
@@ -277,6 +280,8 @@ cat <<EOF
       (wrap-session {:store (cookie-store {:key (byte-array (map int "a 16-byte secret"))})})
       (wrap-defaults api-defaults)
       (wrap-resource "public")
+      (wrap-cors :access-control-allow-origin (re-pattern (str "http://" server ":" port "/.*"))
+                 :access-control-allow-methods [:get :put :post :delete])
       (wrap-content-type)
       (wrap-not-modified)))
 EOF

@@ -437,7 +437,7 @@ cat <<EOF
                                                db-auth)))
                     :body :docs first)
             result (-> (<! (http/put (str urld "/" id)
-                                     (merge {:json-params (merge old m)} db-auth)))]
+                                     (merge {:json-params (merge old m)} db-auth))))]
         (when-not (:success result)
           (reset! error (:body result)))
         (cb))))

@@ -151,9 +151,9 @@ cat <<EOF
  :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]
  :aliases {:prod {:main-opts ["-m" "cljs.main" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
            :optimal {:main-opts ["-m" "cljs.main" "-O" "advanced" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
-           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.3"}}}
-           :outdated {:extra-deps {olical/depot {:mvn/version "1.8.4"}}
-                      :main-opts  ["-m" "depot.outdated.main" "-a" "outdated"]}
+           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.9"}}}
+           :outdated {:extra-deps {olical/depot {:mvn/version "2.0.1"}}
+                      :main-opts  ["-m" "depot.outdated.main" "-e"]}
            :uberjar {:extra-deps
                       {seancorfield/depstar {:mvn/version "1.0.94"}}
                      :main-opts ["-m" "hf.depstar.uberjar" "target/$project.jar" "-C" "-m" "$project.core"]}}}
@@ -207,7 +207,11 @@ cat <<EOF
 (ns $project.api
   (:require [clojure.edn :as edn]))
 
-(defn get-file []
+(defmacro defrpc [f args body]
+  \`(let [e# nil]
+     (defn ~f ~args (try ~body (catch Exception e# {:castraexpt (ex-message e#)})))))
+
+(defrpc get-file []
   (edn/read-string (slurp "data/items.edn")))
 EOF
 )  > src/clj/$projectdir/api.clj
@@ -258,12 +262,11 @@ cat <<EOF
   [{:keys [ws-channel]}]
   (go
     (let [{:keys [message error]} (<! ws-channel)
-          {:keys [type f args]} message
-          result (apply (ns-resolve '$project.api f) args)]
+          {:keys [type f args]} message]
       (if error
         (println "Error ocurred:" error)
         (if (= type :rpc)
-          (>! ws-channel result)
+          (>! ws-channel (or (apply (ns-resolve '$project.api f) args) :castranil))
           (>! ws-channel "Hello client from server!"))))))
 
 (defroutes app-routes
@@ -369,7 +372,10 @@ cat <<EOF
         (js/console.log "Error:" (pr-str error))
         (do
           (>! ws-channel {:type :rpc :f f :args args})
-          (reset! cl (:message (<! ws-channel)))))
+          (let [msg (:message (<! ws-channel))]
+            (cond (= msg :castranil) (reset! cl nil)
+                  (some? (:castraexpt msg)) (reset! mkproj-demo.rpc/error (:castraexpt msg))
+                  :else (reset! cl msg)))))
       (close! ws-channel))))
 
 ;;; UUID generator of CouchDB
@@ -390,7 +396,7 @@ cat <<EOF
   [m cb]
   (go (let [uuid (-> (<! (http/get (str urls "/_uuids"))) :body :uuids first)
             result (<! (http/put (str urld "/" uuid)
-                                 {:json-params m}))]
+                                 (merge {:json-params m} db-auth)))]
         (when-not (:success result)
           (reset! error (:body result)))
         (cb))))
@@ -406,11 +412,12 @@ cat <<EOF
   (go
     (let [result
           (<! (http/post urlq
-                         {:json-params
-                          (merge m {:limit page-size
-                                    :bookmark (if (or (nil? page)
-                                                      (= page 0)) nil
-                                                  (get-in @pages [:bookmarks page]))})}))
+                         (merge {:json-params
+                                 (merge m {:limit page-size
+                                           :bookmark (if (or (nil? page)
+                                                             (= page 0)) nil
+                                                         (get-in @pages [:bookmarks page]))})}
+                                db-auth)))
           next-bookmark (-> result :body :bookmark)]
       (when (= @pages {}) (reset! pages {:bookmarks {0 nil}}))
       (if (:success result)
@@ -426,7 +433,8 @@ cat <<EOF
 (defn doc-update
   "Update document in CouchDB and run callback for refresh."
   [id m cb]
-  (go (let [old (-> (<! (http/post urlq {:json-params {"selector" {"_id" id}}}))
+  (go (let [old (-> (<! (http/post urlq (merge {:json-params {"selector" {"_id" id}}}
+                                               db-auth)))
                     :body :docs first)
             result (-> (<! (http/put (str urld "/" id)
                                      {:json-params (merge old m)})))]
@@ -438,7 +446,8 @@ cat <<EOF
 (defn doc-delete
   "Delete document in CouchDB and run callback for refresh."
   [id cb]
-  (go (let [rev (-> (<! (http/post urlq {:json-params {"selector" {"_id" id}}}))
+  (go (let [rev (-> (<! (http/post urlq (merge {:json-params {"selector" {"_id" id}}}
+                                               db-auth)))
                     :body :docs first :_rev)
             result (<! (http/delete (str urld "/" id "?rev=" rev)))]
         (when-not (:success result)

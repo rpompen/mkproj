@@ -79,7 +79,7 @@ This project shows several things:
 6. open your standard browser **first**
 7. open this project (obviously)
 8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. select \`Clojure CLI + Figwheel-main\`, then no options in next dialogue  
+9. select \`Clojure CLI + Figwheel-main\`, then :fig option in next dialogue
 9b. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
 11. open \`src/clj/$project/core.clj\` and click in window

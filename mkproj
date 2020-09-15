@@ -141,7 +141,7 @@ cat <<EOF
 {:deps {hoplon {:mvn/version "7.2.0"}
         org.clojure/clojure {:mvn/version "1.10.1"}
         org.clojure/clojurescript {:mvn/version "1.10.773"}
-        compojure {:mvn/version "1.6.1"}
+        compojure {:mvn/version "1.6.2"}
         cljs-http {:mvn/version "0.1.46"}
         ring {:mvn/version "1.8.1"}
         ring-cors {:mvn/version "0.1.13"}
@@ -155,7 +155,7 @@ cat <<EOF
            :outdated {:extra-deps {olical/depot {:mvn/version "2.0.1"}}
                       :main-opts  ["-m" "depot.outdated.main" "-e"]}
            :uberjar {:extra-deps
-                      {seancorfield/depstar {:mvn/version "1.0.94"}}
+                      {seancorfield/depstar {:mvn/version "1.1.117"}}
                      :main-opts ["-m" "hf.depstar.uberjar" "target/$project.jar" "-C" "-m" "$project.core"]}}}
 EOF
 ) > deps.edn

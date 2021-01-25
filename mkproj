@@ -99,10 +99,10 @@ This project shows several things:
 ## compile for distribution
 
 1. close VS code
-2. in project directory run \`clj -Aoptimal\`
+2. in project directory run \`clj -M:optimal\`
 3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
 4. generate pom.xml with \`clj -Spom\`
-5. package with \`clj -Auberjar\`
+5. package with \`clj -X:uberjar\`
 6. run with \`java -jar target/$project.jar\`
 7. open browser to http://yourhost:8000/ and refresh if page not loading
 
@@ -112,7 +112,7 @@ If you move the jar file, keep in mind that all paths are relative to the locati
 
 ## Check for outdated dependencies
 
-Run \`clj -Aoutdated\` from the project directory.
+Run \`clj -M:outdated\` from the project directory.
 A table of suggested updates (to be put in deps.edn) might be shown.
 
 ## Study material
@@ -154,9 +154,11 @@ cat <<EOF
            :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.12"}}}
            :outdated {:extra-deps {olical/depot {:mvn/version "2.1.0"}}
                       :main-opts  ["-m" "depot.outdated.main" "-e"]}
-           :uberjar {:extra-deps
-                      {seancorfield/depstar {:mvn/version "2.0.165"}}
-                     :main-opts ["-m" "hf.depstar.uberjar" "target/$project.jar" "-C" "-m" "$project.core"]}}}
+           :uberjar {:replace-deps {seancorfield/depstar {:mvn/version "2.0.165"}}
+:exec-fn hf.depstar/uberjar
+                     :exec-args {:jar "target/$project.jar"
+                                 :aot true
+                                 :main-class $project.core}}}}
 EOF
 ) > deps.edn
 
@@ -513,4 +515,4 @@ EOF
 git init
 git add .
 git commit -m "Initial project"
-clojure -Aprod
+clojure -M:prod

@@ -155,7 +155,7 @@ cat <<EOF
            :outdated {:extra-deps {olical/depot {:mvn/version "2.1.0"}}
                       :main-opts  ["-m" "depot.outdated.main" "-e"]}
            :uberjar {:replace-deps {seancorfield/depstar {:mvn/version "2.0.165"}}
-:exec-fn hf.depstar/uberjar
+                     :exec-fn hf.depstar/uberjar
                      :exec-args {:jar "target/$project.jar"
                                  :aot true
                                  :main-class $project.core}}}}

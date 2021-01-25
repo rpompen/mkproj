@@ -60,7 +60,7 @@ This project shows several things:
 5. initialized GIT repository
 6. one language for client (browser) and server code
 7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 170 nodes!)
-8. extremely small project size (±300 lines of code **and** project files, not counting README)
+8. extremely small project size (±320 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
 11. front-end code is compiled to javascript and delivered via JVM web-server
@@ -80,6 +80,7 @@ This project shows several things:
 7. open this project (obviously)
 8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
 9. select \`Clojure CLI + Figwheel-main\`, then :fig option in next dialogue  
+9a. a box might open asking for a port number; This can happen the first time; restart VS code  
 9b. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
 11. open \`src/clj/$project/core.clj\` and click in window
@@ -104,7 +105,7 @@ This project shows several things:
 4. generate pom.xml with \`clj -S:pom\`
 5. package with \`clj -X:uberjar\`
 6. run with \`java -jar target/$project.jar\`
-7. open browser to http://yourhost:8000/ and refresh if page not loading
+7. open browser to http://[yourhost]:8000/ and refresh if page not loading
 
 
 There might be a few seconds delay to start.
@@ -310,7 +311,7 @@ cat <<EOF
        "Gets data from file via JVM backend. "
        (button :type "button" :click #(rpc/get-file) "Get file")
        (p (text "~{rpc/file-data}"))
-       (text "Gets items from CouchDB via REST interface. ~{(:curpage rpc/people-pages)}")
+       (text "Gets items from CouchDB via REST interface, page ~{(inc (:curpage rpc/people-pages))}")
        (form
         (fieldset
          (legend "People " (for-tpl [[page data] (cell= (:bookmarks rpc/people-pages))]
@@ -424,7 +425,7 @@ cat <<EOF
                                                          (get-in @pages [:bookmarks page]))})}
                                 db-auth)))
           next-bookmark (-> result :body :bookmark)]
-      (when (= @pages {}) (reset! pages {:bookmarks {0 nil}}))
+      (when (empty? @pages) (reset! pages {:bookmarks {0 nil}}))
       (if (:success result)
         (do (reset! cl (-> result :body :docs func))
             (when (and (not= @pages :none)

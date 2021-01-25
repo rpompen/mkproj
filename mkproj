@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ©2020 Roel Pompen
+# ©2021 Roel Pompen
 
 if ! ( type -f git ) > /dev/null
 then
@@ -101,7 +101,7 @@ This project shows several things:
 1. close VS code
 2. in project directory run \`clj -M:optimal\`
 3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
-4. generate pom.xml with \`clj -Spom\`
+4. generate pom.xml with \`clj -S:pom\`
 5. package with \`clj -X:uberjar\`
 6. run with \`java -jar target/$project.jar\`
 7. open browser to http://yourhost:8000/ and refresh if page not loading
@@ -125,7 +125,7 @@ http://clojurescript.org/
 http://hoplon.io/  
 https://github.com/jarohen/chord  
 
-©2020 Roel Pompen
+©2021 Roel Pompen
 EOF
 ) > README.md
 
@@ -454,7 +454,7 @@ cat <<EOF
   (go (let [rev (-> (<! (http/post urlq (merge {:json-params {"selector" {"_id" id}}}
                                                db-auth)))
                     :body :docs first :_rev)
-            result (<! (http/delete (str urld "/" id "?rev=" rev)))]
+            result (<! (http/delete (str urld "/" id "?rev=" rev) db-auth))]
         (when-not (:success result)
           (reset! error (:body result)))
         (cb))))
@@ -466,7 +466,7 @@ cat <<EOF
 
 (defc= file-data   (:file-data   state) #(swap! state assoc :file-data %))
 (defc= people (:people state) #(swap! state assoc :people %))
-(defc  people-pages {:bookmarks {0 nil}})
+(defc  people-pages {})
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
@@ -487,12 +487,13 @@ cat <<EOF
 
 (defn add-db [name age] (doc-add {"type" "person"
                                   "name" name
-                                  "age" age} (fn []
-                                               (reset! people-pages {:bookmarks {0 nil}})
-                                               (js/setTimeout get-people 500))))
+                                  "age" age}
+                                 (fn []
+                                   (reset! people-pages {})
+                                   (js/setTimeout get-people 500))))
 
 (defn del-db [id] (doc-delete id (fn []
-                                   (reset! people-pages {:bookmarks {0 nil}})
+                                   (reset! people-pages {})
                                    (js/setTimeout get-people 500))))
 
 (get-people)

@@ -85,7 +85,7 @@ This project shows several things:
 10. change browser URL from port 9500 to 8000; nothing will show up
 11. open \`src/clj/$project/core.clj\` and click in window
 12. press \`ctrl-alt-c enter\` to compile namespace
-13. type in (in CLJ REPL): \`($project.core/-main)\`
+13. type in (in CLJ REPL): \`(-main)\`
 14. refresh browser
 15. any changes you save lead to immediate changes in the browser
 
@@ -96,6 +96,7 @@ This project shows several things:
 3. create document with fields "type": "person", "name": "Jack", "age": 21
 4. create index (for sorting) on "name"
 5. enable CORS in settings
+6. use [yourhost] instead of localhost in browser from now on
 
 ## compile for distribution
 
@@ -105,10 +106,9 @@ This project shows several things:
 4. generate pom.xml with \`clj -S:pom\`
 5. package with \`clj -X:uberjar\`
 6. run with \`java -jar target/$project.jar\`
-7. open browser to http://[yourhost]:8000/ and refresh if page not loading
+7. open browser to http://[yourhost]:8000/
 
 
-There might be a few seconds delay to start.
 If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening \`data/items.edn\` is still there, you'll get an error.
 
 ## Check for outdated dependencies

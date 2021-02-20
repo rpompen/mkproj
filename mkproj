@@ -101,10 +101,10 @@ This project shows several things:
 ## compile for distribution
 
 1. close VS code
-2. in project directory run \`clj -M:optimal\`
+2. in project directory run \`clj -Moptimal\`
 3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
-4. generate pom.xml with \`clj -S:pom\`
-5. package with \`clj -X:uberjar\`
+4. generate pom.xml with \`clj -Spom\`
+5. package with \`clj -Xuberjar\`
 6. run with \`java -jar target/$project.jar\`
 7. open browser to http://[yourhost]:8000/
 
@@ -113,7 +113,7 @@ If you move the jar file, keep in mind that all paths are relative to the locati
 
 ## Check for outdated dependencies
 
-Run \`clj -M:outdated\` from the project directory.
+Run \`clj -Moutdated\` from the project directory.
 A table of suggested updates (to be put in deps.edn) might be shown.
 
 ## Study material
@@ -140,11 +140,11 @@ EOF
 (
 cat <<EOF
 {:deps {hoplon/hoplon {:mvn/version "7.2.0"}
-        org.clojure/clojure {:mvn/version "1.10.1"}
+        org.clojure/clojure {:mvn/version "1.10.2"}
         org.clojure/clojurescript {:mvn/version "1.10.773"}
         compojure/compojure {:mvn/version "1.6.2"}
         cljs-http/cljs-http {:mvn/version "0.1.46"}
-        ring/ring {:mvn/version "1.8.2"}
+        ring/ring {:mvn/version "1.9.1"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         jarohen/chord {:mvn/version "0.8.1"}

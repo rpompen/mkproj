@@ -144,7 +144,7 @@ cat <<EOF
         org.clojure/clojurescript {:mvn/version "1.10.773"}
         compojure/compojure {:mvn/version "1.6.2"}
         cljs-http/cljs-http {:mvn/version "0.1.46"}
-        ring/ring {:mvn/version "1.9.1"}
+        ring/ring {:mvn/version "1.8.2"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}
         ring/ring-defaults {:mvn/version "0.3.2"}
         jarohen/chord {:mvn/version "0.8.1"}

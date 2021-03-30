@@ -76,12 +76,11 @@ This project shows several things:
 3. make sure you have git installed
 4. have Visual Studio Code installed to follow this document precisely
 5. run VS code and install \`calva\` plugin, no config required
-6. open your standard browser **first**
-7. open this project (obviously)
+6. open this project (obviously)
+7. open your standard browser **first**
 8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. select \`Clojure CLI + Figwheel-main\`, then :fig option in next dialogue  
-9a. a box might open asking for a port number; This can happen the first time; restart VS code  
-9b. the running browser will show the app
+9. select \`Clojure CLI + Figwheel-main\`, then \`:fig\` option in next dialogue  
+9a. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
 11. open \`src/clj/$project/core.clj\` and click in window
 12. press \`ctrl-alt-c enter\` to compile namespace

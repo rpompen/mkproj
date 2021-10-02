@@ -59,13 +59,13 @@ This project shows several things:
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 170 nodes!)
-8. extremely small project size (±320 lines of code **and** project files, not counting README)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 165 nodes!)
+8. extremely small project size (±305 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
 11. front-end code is compiled to javascript and delivered via JVM web-server
-12. JS code size while developing: less than 6MB
-13. JS code size after compiling for production: ±550KB (less than 140KB gzipped)
+12. JS code size while developing: less than 5MB
+13. JS code size after compiling for production: ±540KB (less than 140KB gzipped)
 14. segmented state map using lenses (reduces events and facilitates refactoring)
 15. paginated DB access
 
@@ -79,7 +79,7 @@ This project shows several things:
 6. open this project (obviously)
 7. open your standard browser **first**
 8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. select \`Clojure CLI + Figwheel-main\`, then \`:fig\` option in next dialogue  
+9. select \`deps.edn + Figwheel-main\`, then \`:fig\` option in next dialogue  
 9a. the running browser will show the app
 10. change browser URL from port 9500 to 8000; nothing will show up
 11. open \`src/clj/$project/core.clj\` and click in window
@@ -140,18 +140,18 @@ EOF
 cat <<EOF
 {:deps {hoplon/hoplon {:mvn/version "7.2.0"}
         org.clojure/clojure {:mvn/version "1.10.3"}
-        org.clojure/clojurescript {:mvn/version "1.10.773"}
+        org.clojure/clojurescript {:mvn/version "1.10.879"}
         compojure/compojure {:mvn/version "1.6.2"}
         cljs-http/cljs-http {:mvn/version "0.1.46"}
-        ring/ring {:mvn/version "1.8.2"}
+        ring/ring {:mvn/version "1.9.4"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}
-        ring/ring-defaults {:mvn/version "0.3.2"}
+        ring/ring-defaults {:mvn/version "0.3.3"}
         jarohen/chord {:mvn/version "0.8.1"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
  :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]
  :aliases {:prod {:main-opts ["-m" "cljs.main" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
            :optimal {:main-opts ["-m" "cljs.main" "-O" "advanced" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
-           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.12"}}}
+           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.14"}}}
            :outdated {:extra-deps {olical/depot {:mvn/version "2.1.0"}}
                       :main-opts  ["-m" "depot.outdated.main" "-e"]}
            :uberjar {:replace-deps {seancorfield/depstar {:mvn/version "2.0.165"}}

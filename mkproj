@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ©2021 Roel Pompen
+# ©2022 Roel Pompen
 
 if ! ( type -f git ) > /dev/null
 then
@@ -59,13 +59,13 @@ This project shows several things:
 4. sample querying of CouchDB via REST interface
 5. initialized GIT repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 165 nodes!)
-8. extremely small project size (±305 lines of code **and** project files, not counting README)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 210 nodes!)
+8. extremely small project size (±395 lines of code **and** project files, not counting README)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
 11. front-end code is compiled to javascript and delivered via JVM web-server
 12. JS code size while developing: less than 5MB
-13. JS code size after compiling for production: ±540KB (less than 140KB gzipped)
+13. JS code size after compiling for production: ±630KB (less than 165KB gzipped)
 14. segmented state map using lenses (reduces events and facilitates refactoring)
 15. paginated DB access
 
@@ -125,7 +125,7 @@ http://clojurescript.org/
 http://hoplon.io/  
 https://github.com/jarohen/chord  
 
-©2021 Roel Pompen
+©2022 Roel Pompen
 EOF
 ) > README.md
 
@@ -139,7 +139,7 @@ EOF
 (
 cat <<EOF
 {:deps {hoplon/hoplon {:mvn/version "7.2.0"}
-        org.clojure/clojure {:mvn/version "1.10.3"}
+        org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/clojurescript {:mvn/version "1.11.4"}
         compojure/compojure {:mvn/version "1.6.2"}
         cljs-http/cljs-http {:mvn/version "0.1.46"}
@@ -192,6 +192,10 @@ EOF
 cat <<EOF
 h1 {
   color: #1be9df;
+}
+
+form {
+    width: 33vw;
 }
 EOF
 ) > resources/public/css/app.css
@@ -300,10 +304,13 @@ EOF
 (
 cat <<EOF
 (ns $project.core
-  (:require [hoplon.core :as h :refer [defelem div h1 p text input
+  (:require [hoplon.core :as h :refer [defelem div h1 p text input with-init!
                                        button form for-tpl fieldset legend]]
-            [javelin.core :as j :refer [cell cell=]]
+            [hoplon.jquery]
+            [javelin.core :as j :refer [cell cell= dosync]]
             [$project.rpc :as rpc]))
+
+(with-init! (rpc/get-people))
 
 (defelem main [_ _]
   (div :id "app"
@@ -327,16 +334,16 @@ cat <<EOF
           (fieldset
            (legend "New person")
            (input :type "text" :placeholder "name"
-                  :change #(reset! name (.. % -target -value))
-                  :focus #(set! (.. % -target -value) nil))
+                  :value name
+                  :change #(reset! name @%))
            (input :type "number" :placeholder "age"
-                  :change #(reset! age (int (.. % -target -value)))
-                  :focus #(set! (.. % -target -value) nil))
+                  :value age
+                  :change #(reset! age (int @%)))
            (button :type "button"
                    :click (fn []
                             (rpc/add-db @name @age)
-                            (reset! name nil)
-                            (reset! age nil))
+                            (dosync (reset! name nil)
+                                    (reset! age nil)))
                    "Add"))))))
 
 (.replaceChild (.-body js/document)
@@ -437,12 +444,6 @@ cat <<EOF
                   :else (reset! cl msg)))))
       (close! ws-channel))))
 
-(defn fieldupdate []
-  (doseq [elem (.getElementsByClassName js/document "tewissen")]
-    (set! (.-value elem) (.-defaultValue elem)))
-  (doseq [elem (.getElementsByTagName js/document "textarea")]
-    (set! (.-value elem) (.-defaultValue elem))))
-
 ;;; UUID generator of CouchDB
 (defc uuids nil)
 
@@ -458,7 +459,7 @@ cat <<EOF
 ;;; CREATE
 (defn doc-add
   "Add document to CouchDB and run callback for refresh."
-  [m cb]
+  [m & {cb :cb :or {:cb identity}}]
   (go (let [uuid (-> (<! (qget (str urls "/_uuids"))) :body (get "uuids") first)
             result (<! (qput (str urld "/" uuid)
                                  (merge {:json-params m} db-auth)))]
@@ -473,7 +474,7 @@ cat <<EOF
    An optional funtion \`:func\` is applied to the result set.
    \`page\` is the page number to get. \`pages\` is a hash-map containing bookmarks.
    Initialize that map as nil."
-  [m cl & {:keys [func page-size page pages] :or {func identity, page-size 25, pages (cell :none)}}]
+  [m cl & {:keys [cb func page-size page pages] :or {cb identity, func identity, page-size 25, pages (cell :none)}}]
   (go
     (let [result
           (<! (qpost urlq
@@ -493,12 +494,12 @@ cat <<EOF
                      next-bookmark))
             (when (not= @pages :none) (swap! pages assoc :curpage (or page 0))))
         (reset! error (:body result)))
-      (fieldupdate))))
+      (cb))))
 
 ;;; UPDATE
 (defn doc-update
   "Update document in CouchDB and run callback for refresh."
-  [id m cb]
+  [id m & {cb :cb :or {:cb identity}}]
   (go (let [old (-> (<! (qpost urlq (merge {:json-params {"selector" {"_id" id}}}
                                                db-auth)))
                     :body (get "docs") first)
@@ -550,7 +551,7 @@ cat <<EOF
 ;;; DELETE
 (defn doc-delete
   "Delete document in CouchDB and run callback for refresh."
-  [id cb]
+  [id & {cb :cb :or {:cb identity}}]
   (go (let [rev (-> (<! (qpost urlq (merge {:json-params {"selector" {"_id" id}}}
                                                db-auth)))
                     :body (get "docs") first (get "_rev"))
@@ -561,11 +562,10 @@ cat <<EOF
 
 ;; segmented state + lenses
 ;; reduces load due to state modifications and allows easier refactoring
-(defonce state
-  (cell {}))
+(def state (cell {}))
 
-(defc= file-data (get-in state [:io :file-data]) #(swap! state assoc-in [:io :file-data] %))
-(defc= people (get-in state [:io :people]) #(swap! state assoc-in [:io :people] %))
+(defc= file-data    (get-in state [:io :file-data]) #(swap! state assoc-in [:io :file-data] %))
+(defc= people       (get-in state [:io :people]) #(swap! state assoc-in [:io :people] %))
 (defc= people-pages (get-in state [:ui :people-pages]) #(swap! state assoc-in [:ui :people-pages] %))
 
 ;; RPC to backend
@@ -587,15 +587,14 @@ cat <<EOF
 (defn add-db [name age] (doc-add {"type" "person"
                                   "name" name
                                   "age" age}
-                                 (fn []
-                                   (reset! people-pages {})
-                                   (js/setTimeout get-people 500))))
+                                 :cb (fn []
+                                       (reset! people-pages {})
+                                       (get-people))))
 
-(defn del-db [id] (doc-delete id (fn []
-                                   (reset! people-pages {})
-                                   (js/setTimeout get-people 500))))
+(defn del-db [id] (doc-delete id :cb (fn []
+                                       (reset! people-pages {})
+                                       (get-people))))
 
-(get-people)
 EOF
 ) > src/cljs/$projectdir/rpc.cljs
 

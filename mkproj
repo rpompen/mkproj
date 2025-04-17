@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# ©2022 Roel Pompen
+# ©2024 Roel Pompen
 
-if ! ( type -f git ) > /dev/null
+hostname=desktop-roel
+
+if ! ( type -f fossil ) > /dev/null
 then
-  echo "Git not installed. On ubuntu type git to install."
+  echo "Fossil not installed. On ubuntu type fossil to install."
 fi
 
 if ! ( type -f clojure ) > /dev/null
@@ -57,7 +59,7 @@ This project shows several things:
 2. Hot code reloading (compile-on-save, no browser reload required)
 3. RPC mechanism for bidirectional websocket to back-end
 4. sample querying of CouchDB via REST interface
-5. initialized GIT repository
+5. initialized Fossil repository
 6. one language for client (browser) and server code
 7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 210 nodes!)
 8. extremely small project size (±395 lines of code **and** project files, not counting README)
@@ -125,7 +127,7 @@ http://clojurescript.org/
 http://hoplon.io/  
 https://github.com/jarohen/chord  
 
-©2022 Roel Pompen
+©2024 Roel Pompen
 EOF
 ) > README.md
 
@@ -138,21 +140,21 @@ EOF
 
 (
 cat <<EOF
-{:deps {hoplon/hoplon {:mvn/version "7.2.0"}
-        org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/clojurescript {:mvn/version "1.11.4"}
-        compojure/compojure {:mvn/version "1.6.2"}
-        cljs-http/cljs-http {:mvn/version "0.1.46"}
-        ring/ring {:mvn/version "1.9.5"}
+{:deps {hoplon/hoplon {:mvn/version "7.5.0"}
+        org.clojure/clojure {:mvn/version "1.12.0"}
+        org.clojure/clojurescript {:mvn/version "1.11.121"}
+        compojure/compojure {:mvn/version "1.7.0"}
+        cljs-http/cljs-http {:mvn/version "0.1.48"}
+        ring/ring {:mvn/version "1.10.0"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}
-        ring/ring-defaults {:mvn/version "0.3.3"}
+        ring/ring-defaults {:mvn/version "0.4.0"}
         jarohen/chord {:mvn/version "0.8.1"}
         com.cemerick/url {:mvn/version "0.1.1"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
  :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]
  :aliases {:prod {:main-opts ["-m" "cljs.main" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
            :optimal {:main-opts ["-m" "cljs.main" "-O" "advanced" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
-           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.16"}}}
+           :fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.18"}}}
            :outdated {:extra-deps {olical/depot {:mvn/version "2.3.0"}}
                       :main-opts  ["-m" "depot.outdated.main" "-e"]}
            :uberjar {:replace-deps {seancorfield/depstar {:mvn/version "2.0.165"}}
@@ -182,7 +184,7 @@ cat <<EOF
 </head>
 <body>
     <div id="app"></div>
-    <script src="cljs-out/dev-main.js"></script>
+    <script src="cljs-out/dev-main.js?build=0.1"></script>
 </body>
 </html>
 EOF
@@ -202,18 +204,6 @@ EOF
 
 (
 cat <<EOF
-target/
-.cpcache/
-.nrepl*
-pom.xml
-.lsp/
-.clj-kondo/
-.calva/
-EOF
-) > .gitignore
-
-(
-cat <<EOF
 (ns $project.api
   (:require [clojure.edn :as edn]))
 
@@ -221,8 +211,8 @@ cat <<EOF
   \`(let [e# nil]
      (defn ~f ~args (try ~@body (catch Exception e# {:castraexpt (ex-message e#)})))))
 
-(defrpc get-file []
-  (edn/read-string (slurp "data/items.edn")))
+(defrpc get-file [naam]
+  (str naam " " (edn/read-string (slurp "data/items.edn"))))
 EOF
 )  > src/clj/$projectdir/api.clj
 
@@ -316,12 +306,12 @@ cat <<EOF
   (div :id "app"
        (h1 "Sample")
        "Gets data from file via JVM backend. "
-       (button :type "button" :click #(rpc/get-file) "Get file")
+       (button :type "button" :click #(rpc/get-file "Henk") "Get file")
        (p (text "~{rpc/file-data}"))
        (text "Gets items from CouchDB via REST interface, page ~{(inc (:curpage rpc/people-pages))}")
        (form
         (fieldset
-         (legend "People " (for-tpl [[page data] (cell= (:bookmarks rpc/people-pages))]
+         (legend "People " (for-tpl [[page _] (cell= (:bookmarks rpc/people-pages))]
                                     (button :type "button"
                                             :click #(rpc/get-people @page) (cell= (inc page)))))
          (for-tpl [{id "_id" :strs [name age]} rpc/people]
@@ -372,8 +362,8 @@ cat <<EOF
 (def urld (str urls db-name))
 (def urlq (str urld "/_find"))
 ;; Merge with :json-params for authentication
-(def db-auth {:basic-auth {:username "admin"
-                           :password "Cl0jure!"}})
+(def db-auth {:basic-auth {:username "NEVER-admin"
+                           :password "SET-THIS!"}})
 
 ;; patch cljs-http to not mangle JSON
 (defn json-decode-raw
@@ -429,9 +419,9 @@ cat <<EOF
 (defc error nil)
 (defc loading #{})
 
-(defn launch-fn 
+(defn launch-fn
   "Launches RPC call for \`f\` in backend. Return value goes into cell."
-  [f cl & args]
+  [f cl args]
   (go
     (let [{:keys [ws-channel error] :as call} (<! (ws-ch (str "ws" (when secure? \s) "://" server (when-not secure? (str ":" port)) "/ws")
                                                 {:format :transit-json}))]
@@ -456,19 +446,19 @@ cat <<EOF
   (go (let [result
             (<! (qget (str "http" (when secure? \s) "://" db-server ":" db-port "/_uuids"
                                (when (some? n) (str "?count=" (first n))))))]
-        (reset! uuids (:uuids (:body result))))))
+        (reset! uuids (get (:body result) "uuids")))))
 
 ;;; CRUD: CREATE RETRIEVE UPDATE DELETE
 ;;; CREATE
 (defn doc-add
   "Add document to CouchDB and run callback for refresh."
-  [m & {cb :cb :or {:cb identity}}]
+  [m & {cb :cb :or {cb identity}}]
   (go (let [uuid (-> (<! (qget (str urls "/_uuids"))) :body (get "uuids") first)
             result (<! (qput (str urld "/" uuid)
-                                 (merge {:json-params m} db-auth)))]
-        (when-not (:success result)
-          (reset! error (:body result)))
-        (cb))))
+                             (merge {:json-params m} db-auth)))]
+        (if-not (:success result)
+          (reset! error (:body result))
+          (cb)))))
 
 ;;; RETRIEVE
 (defn query
@@ -476,17 +466,20 @@ cat <<EOF
    JSON query \`m\` will be sent to DB. Result gets sent to cell \`cl\`.
    An optional funtion \`:func\` is applied to the result set.
    \`page\` is the page number to get. \`pages\` is a hash-map containing bookmarks.
-   Initialize that map as nil."
-  [m cl & {:keys [cb func page-size page pages] :or {cb identity, func identity, page-size 25, pages (cell :none)}}]
+   Initialize that map as nil. \`cb\` is a callback function which will run after
+   successfull retrieval."
+  [m cl & {:keys [cb func page-size page pages] :or {cb identity, func identity, page-size 5000
+                                                     pages (cell :none)}}]
   (go
     (let [result
           (<! (qpost urlq
-                         (merge {:json-params
-                                 (merge m {:limit page-size
-                                           :bookmark (if (or (nil? page)
-                                                             (= page 0)) nil
-                                                         (get-in @pages [:bookmarks page]))})}
-                                db-auth)))
+                     (merge
+                      {:json-params
+                       (merge m {:limit page-size
+                                 :bookmark (if (or (nil? page)
+                                                   (= page 0)) nil
+                                               (get-in @pages [:bookmarks page]))})}
+                      db-auth)))
           next-bookmark (-> result :body (get "bookmark"))]
       (when (or (= @pages :none) (empty? @pages)) (reset! pages {:bookmarks {0 nil}}))
       (if (:success result)
@@ -495,55 +488,56 @@ cat <<EOF
                        (not (-> @pages :bookmarks vals set (contains? next-bookmark))))
               (swap! pages assoc-in [:bookmarks (inc page)]
                      next-bookmark))
-            (when (not= @pages :none) (swap! pages assoc :curpage (or page 0))))
-        (reset! error (:body result)))
-      (cb))))
+            (when (not= @pages :none) (swap! pages assoc :curpage (or page 0)))
+            (reset! error nil)
+            (cb))
+        (reset! error (:body result))))))
 
 ;;; UPDATE
 (defn doc-update
   "Update document in CouchDB and run callback for refresh."
-  [id m & {cb :cb :or {:cb identity}}]
-  (go (let [old (-> (<! (qpost urlq (merge {:json-params {"selector" {"_id" id}}}
-                                               db-auth)))
+  [id m & {cb :cb :or {cb identity}}]
+  (go (let [old (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
+                                           db-auth)))
                     :body (get "docs") first)
-            result (-> (<! (qput (str urld "/" id)
-                                     (merge {:json-params (merge old m)} db-auth))))]
-        (when-not (:success result)
-          (reset! error (:body result)))
-        (cb))))
+            result (<! (qput (str urld "/" id)
+                             (merge {:json-params (merge old m)} db-auth)))]
+        (if-not (:success result)
+          (reset! error (:body result))
+          (cb)))))
 
 ;;; ATTACHMENT
+
 (defn doc-attach
   "Attach file to document in CouchDB and run callback for refresh."
-  [id f fname & {:keys [meta-info cb] :or {:cb identity}}]
+  [id f fname & {:keys [meta-info cb] :or {cb identity}}]
   (go (let [old (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
                                            db-auth)))
                     :body (get "docs") first)
             rev (get old "_rev")
-            meta-old (get old "meta")
-            meta-new (assoc meta-old fname (first meta-info))
-            result (-> (<! (qput (str urld "/" id "/" (url-encode fname) "?rev=" rev)
-                                 (merge {:multipart-params [[fname f]]} db-auth))))]
+            meta-old (get old "meta-info")
+            fail? #(-> meta-old keys set (contains? fname))
+            meta-new (assoc meta-old fname meta-info)
+            result (or (fail?) (-> (<! (qput (str urld "/" id "/" (url-encode fname) "?rev=" rev)
+                                             (merge {:multipart-params [[fname [f fname]]]} db-auth)))))]
         (if (:success result)
-          (doc-update id {"meta" meta-new} identity)
-          (reset! error (:body result)))
-        (cb))))
+          (doc-update id {"meta-info" meta-new} :cb cb)
+          (reset! error (or (:body result) (str "Dezelfde bestandsnaam bestaat al: " fname)))))))
 
 (defn doc-del-attach
   "Delete attachment"
-  [id fname & {cb :cb :or {:cb identity}}]
+  [id fname & {cb :cb :or {cb identity}}]
   (go (let [old (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
                                            db-auth)))
                     :body (get "docs") first)
             rev (get old "_rev")
-            meta-old (get old "meta")
+            meta-old (get old "meta-info")
             meta-new (dissoc meta-old fname)
             result (<! (http/delete (str urld "/" id "/" (url-encode fname))
                                     (merge {:query-params {"rev" rev}} db-auth)))]
         (if (:success result)
-          (doc-update id {"meta" meta-new} identity)
-          (reset! error (:body result)))
-        (cb))))
+          (doc-update id {"meta-info" meta-new} :cb cb)
+          (reset! error (:body result))))))
 
 (defn doc-list-attach
   "List attachments"
@@ -556,18 +550,19 @@ cat <<EOF
 ;;; DELETE
 (defn doc-delete
   "Delete document in CouchDB and run callback for refresh."
-  [id & {cb :cb :or {:cb identity}}]
-  (go (let [rev (-> (<! (qpost urlq (merge {:json-params {"selector" {"_id" id}}}
-                                               db-auth)))
+  [id & {cb :cb :or {cb identity}}]
+  (go (let [rev (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
+                                           db-auth)))
                     :body (get "docs") first (get "_rev"))
             result (<! (http/delete (str urld "/" id "?rev=" rev) db-auth))]
-        (when-not (:success result)
-          (reset! error (:body result)))
-        (cb))))
+        (if-not (:success result)
+          (reset! error (:body result))
+          (cb)))))
 
 ;; segmented state + lenses
 ;; reduces load due to state modifications and allows easier refactoring
 (def state (cell {}))
+(defc screen nil)
 
 (defc= file-data    (get-in state [:io :file-data]) #(swap! state assoc-in [:io :file-data] %))
 (defc= people       (get-in state [:io :people]) #(swap! state assoc-in [:io :people] %))
@@ -575,7 +570,7 @@ cat <<EOF
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
-(defn get-file [] (launch-fn 'get-file file-data))
+(defn get-file [& params] (launch-fn 'get-file file-data params))
 
 ;; Database
 
@@ -608,7 +603,7 @@ cat <<EOF
 (ns $project.shared)
 
 (def secure? false)
-(def server "rpompen-lt")
+(def server "$hostname")
 (def port 8000)
 
 (def db-server server)
@@ -617,7 +612,237 @@ cat <<EOF
 EOF
 ) > src/cljc/$projectdir/shared.cljc
 
-git init
-git add .
-git commit -m "Initial project"
+mkdir .clj-kondo
+
+(
+cat <<EOF
+{:lint-as {hoplon.core/defelem cljs.core/defn
+           $project.api/defrpc cljs.core/defn
+           hoplon.core/for-tpl cljs.core/for
+           hoplon.core/if-tpl cljs.core/if
+           hoplon.core/case-tpl cljs.core/case
+           hoplon.core/cond-tpl cljs.core/cond
+           javelin.core/defc cljs.core/def
+           javelin.core/cell-let cljs.core/let
+           javelin.core/defc= cljs.core/def}
+ :linters {:invalid-arity {:level :off}}
+ :output  {:exclude-files ["target"]}}
+EOF
+) > .clj-kondo/config.edn
+
+mkdir dev-doc
+
+(
+cat <<EOF
+(ns $project.widgets
+  (:require
+   [$project.rpc :as rpc]
+   [hoplon.core :refer [defelem div h1 input a img for-tpl label br text
+                        if-tpl span table tr th td cond-tpl]]
+   [hoplon.svg :as svg]
+   [javelin.core :refer [cell cell=]]))
+
+;;; In this fn the rpc/screen cell contains a screen full of fields.
+;;; Such a screen would be empty if a key "_id" would not be found...
+(defelem field
+  [{:keys [source lbl id type set-once?]} _]
+  (let [mail? (re-seq #"(?i).*mail.*" lbl)
+        tel?  (re-seq #"(?i).*(foon|phone).*" lbl)
+        initially-filled? (cell nil)
+        inp (input :type (or type (cond
+                                    mail? "email"
+                                    tel?  "tel"
+                                    :else "text"))
+                   :value (cell= (get source lbl))
+                   :id id
+                   :disabled initially-filled?
+                   :step (cell= (when (= type "number") 0.01))
+                   :focus #(if (and set-once? (some? (get @source lbl)) (nil? @initially-filled?) (some? (get @source "_id")))
+                             (reset! initially-filled? true)
+                             (reset! initially-filled? false))
+                   :change (fn [e] (swap! source assoc lbl (cond (= type "number") (js/parseFloat @e)
+                                                                 (or (= type "email")
+                                                                     (and (nil? type)
+                                                                          mail?)) (.toLowerCase @e)
+                                                                 (empty? @e) nil
+                                                                 :else @e))))]
+    (div :class "row"
+         (div :class "col col-3"
+              (label lbl))
+         (if-tpl mail?
+                 [(div :class "col col-8 has-email-field"
+                       inp)
+                  (div :class "col col-1 has-email-link"
+                       (a :href (cell= (when (re-seq #".+@.+\..+" (str (get source lbl))) (str "mailto:" (get source lbl))))
+                          "✉"))]
+                 (div :class "col col-9"
+                      inp)))))
+
+(defelem autocomplete
+  "Creates autocomplete box using cell \`items\` as either a vector of choices, or a map
+   where you select key to get val."
+  [{:keys [items field default cb disabled] :as attr :or {cb identity}} _]
+  (let [invoer (cell "")
+        zoek  (fn [re s] (re-find (re-pattern (str "(?i)^" re ".*")) s))
+        subsel (cell= (->> (if (map? items) (keys items) items) (keep (partial zoek invoer)) vec))
+        open (cell false)
+        rnr (rand-int 2734)]
+    ((div (input :type "text" :input #(reset! invoer @%)
+                 :value default :disabled disabled
+                 :click #(swap! open not) :id (str "compl-inp" rnr))
+          (if-tpl open
+                  (div :id "options" :css {:max-height "300px" :overflow-y "scroll"}
+                       (for-tpl [i subsel]
+                                [(span :click (fn [] (reset! field (if (map? @items) (get @items @i) @i))
+                                                (set! (.-value (.getElementById js/document (str "compl-inp" rnr))) @i)
+                                                (reset! open false)
+                                                (cb)) i)
+                                 (br)]))))
+     (dissoc attr :items :field :default :cb :disabled))))
+
+(defelem col-block
+  [{col-widths :col-widths :or {col-widths [3 9]}} children]
+  (if-tpl
+   (cell= (and (= (count children) (count col-widths))
+               (= 12 (apply + col-widths))))
+   (div :class "row"
+        (for-tpl [[rank column] (cell= (zipmap (range) col-widths))]
+                 (div :class (cell= (str "col col-" (if (= 12 column) "12 col-6-lg" column)))
+                      (nth children @rank))))
+   (h1 :css {:color "red"} (text "LAYOUT-ERROR!!! ~{col-widths} kids: ~{(count children)}"))))
+
+(defelem s-s-table
+  "Sort-and-search table. Takes a seq of \`koppen\` and a seq of maps with \`data\` to present.
+   Koppen should contain the keys to look for in data. \`filter-str\` and \`data\` must be a cell.
+   Sorts on column head click."
+  [{:keys [koppen data filter-str] :as attrs} kids]
+  (let [sorted (cell nil)
+        re (cell= (re-pattern (str "(?i)" filter-str)))
+        subsel (cell= (if (seq filter-str)
+                        (fn [rs] (keep (fn [m] (when (re-seq re (apply str (vals m))) m)) rs))
+                        identity))]
+    ((table
+      (tr
+       (for [kop koppen]
+         (th :click #(reset! sorted kop) kop)))
+      (for-tpl [line (cell= (if (some? sorted) (sort-by #(-> % (get sorted) str .toLowerCase) (subsel data)) (subsel data)))]
+               (tr
+                (for [kop koppen]
+                  (cond-tpl
+                   (re-seq #"(?i).*mail.*" kop) (td (input :type "mail" :disabled true :value (cell= (get line kop))))
+                   (re-seq #"(?i).*Geldig.*" kop) (td (input :type "date" :disabled true :value (cell= (get line kop))))
+                   :else (td (cell= (get line kop))))))))
+     (dissoc attrs :koppen :data :filter-str) kids)))
+
+(defelem line-chart
+  "Expects a coll of at most 100 values, y-coords between 0..100, in a cell passed as \`:data\`"
+  [{data :data :as attrs} _]
+  (let [series (cell= (map #(- 100 %) data))
+        steps  (cell= (map int (range 30 101 (/ 100 (dec (count data))))))
+        points (cell= (apply str (map str steps (repeat ",") series (repeat " "))))
+        frame  (cell= (str "130,100 30,100 " points))]
+    ((svg/svg :viewBox "0 0 130 130"
+              (svg/path :style "stroke:black;stroke-width:1" :d "M15,0V100M30,115h100")
+              (svg/polygon :style "fill:lightgreen;stroke:lime" :points frame)
+              (svg/text :style "font-size:5px" :x 30 :y 110 "test"))
+     (dissoc attrs :data))))
+
+(defelem pie-chart
+  "Single value pie-chart."
+  [{:keys [part color] :or {color "red"} :as attrs} _]
+  (let [circumference (* 25 (/ 44 7))
+        segment (* circumference part)
+        css (str "stroke-dasharray:" segment " " (- circumference segment))]
+    ((svg/svg :viewBox "0 0 100 100"
+              (svg/circle :style css :stroke color :fill "none"
+                          :stroke-width 50 :cx 50 :cy 50 :r 25))
+     (dissoc attrs :part :color))))
+
+(defelem bar-chart
+  "Takes data as map. Vals will be normalized to 100."
+  [{:keys [data style] :as attrs :or {style "stroke:black;stroke-width:1"}} _]
+  (let [res 100
+        mxval (cell= (reduce-kv (fn [acc _ v] (max acc v)) 0 data))
+        normdata (cell= (into {} (map (fn [[k v]] [k (* res (/ v mxval))]) data)))
+        segwidth (cell= (/  res (inc (* 2 (count data)))))
+        segs (cell= (keep-indexed #(when (odd? %1) (int %2)) (vec (range 0 100 segwidth))))
+        plots (cell= (into [] (map (fn [[k v] s] [k v s]) normdata segs)))]
+    ((svg/svg :viewBox (str "0 0 " res " " (+ res 20))
+              (svg/path :style style :d (str "M0," res "h" res))
+              (for-tpl [[_ v s] plots]
+                       (svg/rect :x s :y (cell= (- res v))
+                                 :width segwidth :height v))
+              (for-tpl [[k _ s] plots]
+                       (svg/text :css {:font-size "4px"}
+                                 :x s :y (+ res 10)
+                                 k)))
+     (dissoc attrs :data))))
+
+(defelem widget-demo
+  "dag maand q1234 knoppen"
+  [_ _]
+  (div
+   (bar-chart :data {"Appels" 48 "Bananen" 23 "Peren" 63 "Bramen" 8}
+              :width "300px" :style "stroke:red;stroke-width:1")))
+EOF
+) > src/cljs/$projectdir/widgets.cljs
+
+(
+cat <<EOF
+# All changes applied conform input examples from hoplon.
+
+## Input type:
+text
+\`\`\`
+:change / :input
+:value
+:placeholder
+\`\`\`
+range
+\`\`\`
+:min :max :step
+:value
+:input
+\`\`\`
+select
+\`\`\`
+:change
+:value
+        option
+        :selected
+        :value
+        "label"
+\`\`\`
+select
+\`\`\`
+:multiple true
+:change event.-target.-selectedOptions supports .item.-value
+        .-length
+
+        option
+        :selected
+        :value
+        "label"
+\`\`\`
+checkbox
+\`\`\`
+:click  Fns should return true
+:value
+\`\`\`
+radio
+\`\`\`
+:click
+:checked
+:name
+:value
+\`\`\`
+EOF
+) > dev-doc/widgets.md
+
+[ -d ../fossils ] || mkdir ../fossils
+fossil init --project-name "$project" ../fossils/$project.fossil
+fossil open -k ../fossils/$project.fossil
+fossil add .
+fossil ci -m "$project"
+fossil set ignore-glob "target/"
 clojure -M:prod

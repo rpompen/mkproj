@@ -10,7 +10,7 @@ It aims to provide a template for a scalable yet extremely simple project with a
 * CRUD interface functions for CouchDB
 * dependency updater
 * uberjar packager
-* ±540 lines of code total
+* ±550 lines of code total
 
 The generated README.md gives a full explanation.
 

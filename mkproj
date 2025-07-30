@@ -75,7 +75,7 @@ This project shows several things:
 
 1. have a linux system ready, or find out the rest by yourself :)
 2. install \`clj\` from http://clojure.org/
-3. make sure you have git installed
+3. make sure you have fossil installed
 4. have Visual Studio Code installed to follow this document precisely
 5. run VS code and install \`calva\` plugin, no config required
 6. open this project (obviously)
@@ -127,7 +127,7 @@ http://clojurescript.org/
 http://hoplon.io/  
 https://github.com/jarohen/chord  
 
-©2024 Roel Pompen
+©2025 Roel Pompen
 EOF
 ) > README.md
 

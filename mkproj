@@ -58,46 +58,26 @@ This project shows several things:
 1. Hot CSS reloading
 2. Hot code reloading (compile-on-save, no browser reload required)
 3. RPC mechanism for bidirectional websocket to back-end
-4. sample querying of CouchDB via REST interface
+4. Uses integrated Berkeley DB JE via cupboard
 5. initialized Fossil repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 210 nodes!)
-8. extremely small project size (±395 lines of code **and** project files, not counting README)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 120 nodes with additional 100 nodes in the widgets file!)
+8. extremely small project size (±250 lines of code **and** project files, not counting README and predefined widgets, which add ±280 lines)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
 11. front-end code is compiled to javascript and delivered via JVM web-server
 12. JS code size while developing: less than 5MB
 13. JS code size after compiling for production: ±630KB (less than 165KB gzipped)
 14. segmented state map using lenses (reduces events and facilitates refactoring)
-15. paginated DB access
 
 ## how to develop
 
-1. have a linux system ready, or find out the rest by yourself :)
-2. install \`clj\` from http://clojure.org/
-3. make sure you have fossil installed
-4. have Visual Studio Code installed to follow this document precisely
-5. run VS code and install \`calva\` plugin, no config required
-6. open this project (obviously)
-7. open your standard browser **first**
-8. **then** start project with \`ctrl-alt-c ctrl-alt-j\`
-9. select \`deps.edn + Figwheel-main\`, then \`:fig\` option in next dialogue  
-9a. the running browser will show the app
-10. change browser URL from port 9500 to 8000; nothing will show up
-11. open \`src/clj/$project/core.clj\` and click in window
-12. press \`ctrl-alt-c enter\` to compile namespace
-13. type in (in CLJ REPL): \`(-main)\`
-14. refresh browser
-15. any changes you save lead to immediate changes in the browser
-
-## using the CouchDB demo
-
-1. install CouchDB
-2. make database named \`sample\`
-3. create document with fields "type": "person", "name": "Jack", "age": 21
-4. create index (for sorting) on "name"
-5. enable CORS in settings
-6. use [yourhost] instead of localhost in browser from now on
+1. install \`clj\` from http://clojure.org/
+2. start figwheel-main project using alias \`:fig\`
+3. open \`src/clj/$project/core.clj\` and load/compile
+4. run \`(-main)\`
+5. change browser URL from port 9500 to 8000
+6. any changes you save lead to immediate changes in the browser
 
 ## compile for distribution
 
@@ -106,9 +86,6 @@ This project shows several things:
 3. delete extraneous files: \`rm -rf target/public/cljs-out/dev\`
 4. generate pom.xml with \`clj -Spom\`
 5. package with \`clj -Xuberjar\`
-6. run with \`java -jar target/$project.jar\`
-7. open browser to http://[yourhost]:8000/
-
 
 If you move the jar file, keep in mind that all paths are relative to the location from where you run, i.e. if the code opening \`data/items.edn\` is still there, you'll get an error.
 
@@ -141,15 +118,17 @@ EOF
 (
 cat <<EOF
 {:deps {hoplon/hoplon {:mvn/version "7.5.0"}
-        org.clojure/clojure {:mvn/version "1.12.1"}
+        org.clojure/clojure {:mvn/version "1.12.3"}
         org.clojure/clojurescript {:mvn/version "1.12.42"}
-        compojure/compojure {:mvn/version "1.7.1"}
-        cljs-http/cljs-http {:mvn/version "0.1.48"}
-        ring/ring {:mvn/version "1.14.2"}
+        org.clojure/core.async {:mvn/version "1.8.741"}
+        http-kit/http-kit {:mvn/version "2.8.1"}
+        compojure/compojure {:mvn/version "1.7.2"}
+        cupboard/cupboard {:mvn/version "1.0beta1"}
+        com.sleepycat/je {:mvn/version "18.3.12"}
+        ring/ring {:mvn/version "1.15.3"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}
-        ring/ring-defaults {:mvn/version "0.6.0"}
+        ring/ring-defaults {:mvn/version "0.7.0"}
         jarohen/chord {:mvn/version "0.8.1"}
-        com.cemerick/url {:mvn/version "0.1.1"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
  :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]
  :aliases {:prod {:main-opts ["-m" "cljs.main" "-d" "target/public/cljs-out/dev" "-o" "target/public/cljs-out/dev-main.js" "-co" "cljsopts.edn" "-c" "$project.core"]}
@@ -205,7 +184,17 @@ EOF
 (
 cat <<EOF
 (ns $project.api
-  (:require [clojure.edn :as edn]))
+  (:require [clojure.edn :as edn]
+            [cupboard.core :as cb]
+            [cupboard.utils :refer :all]))
+
+;; Database
+
+(cb/open-cupboard! "store")
+
+(cb/defpersist persoon ((:id :index :unique) (:naam :index :any) (:leeftijd :index :any)))
+
+;; RPC
 
 (defmacro defrpc [f args & body]
   \`(let [e# nil]
@@ -213,6 +202,24 @@ cat <<EOF
 
 (defrpc get-file [naam]
   (str naam " " (edn/read-string (slurp "data/items.edn"))))
+
+(defrpc get-people [] (cb/query :shelf-name "personen"))
+
+(defrpc add-db
+  [name age]
+  (cb/make-instance persoon [(java.util.UUID/randomUUID) name age] :shelf-name "personen"))
+
+(defrpc del-db
+  [id]
+  (cb/query (= :id id)
+            :shelf-name "personen"
+            :callback #(cb/delete % :shelf-name "personen")))
+
+(comment
+
+  (add-db "Roel" 52)
+
+  )
 EOF
 )  > src/clj/$projectdir/api.clj
 
@@ -294,12 +301,13 @@ EOF
 (
 cat <<EOF
 (ns $project.core
-  (:require [hoplon.core :as h :refer [defelem div h1 p text input with-init!
-                                       button form for-tpl fieldset legend]]
+  (:require [hoplon.core :refer [defelem div h1 p text input with-init! with-timeout
+                                 button form for-tpl fieldset legend]]
             [hoplon.jquery]
-            [javelin.core :as j :refer [cell cell= dosync]]
+            [javelin.core :refer [cell cell= dosync]]
             [$project.rpc :as rpc]))
 
+(def TO 800)
 (with-init! (rpc/get-people))
 
 (defelem main [_ _]
@@ -308,17 +316,16 @@ cat <<EOF
        "Gets data from file via JVM backend. "
        (button :type "button" :click #(rpc/get-file "Henk") "Get file")
        (p (text "~{rpc/file-data}"))
-       (text "Gets items from CouchDB via REST interface, page ~{(inc (:curpage rpc/people-pages))}")
+       (text "Gets items from database")
        (form
         (fieldset
-         (legend "People " (for-tpl [[page _] (cell= (:bookmarks rpc/people-pages))]
-                                    (button :type "button"
-                                            :click #(rpc/get-people @page) (cell= (inc page)))))
-         (for-tpl [{id "_id" :strs [name age]} rpc/people]
+         (legend "People")
+         (for-tpl [{:keys [id naam leeftijd]} rpc/people]
                   (div
-                   (input :type "text" :value name :disabled true)
-                   (input :type "text" :value age :disabled true)
-                   (button :type "button" :click #(rpc/del-db @id) "Erase"))))
+                   (input :type "text" :value naam :disabled true)
+                   (input :type "text" :value leeftijd :disabled true)
+                   (button :type "button" :click (fn [] (rpc/del-db @id)
+                                                   (with-timeout TO (rpc/get-people))) "Erase"))))
         (let [name (cell nil)
               age (cell nil)]
           (fieldset
@@ -332,8 +339,9 @@ cat <<EOF
            (button :type "button"
                    :click (fn []
                             (rpc/add-db @name @age)
-                            (dosync (reset! name nil)
-                                    (reset! age nil)))
+                            (reset! name nil)
+                            (reset! age nil)
+                            (with-timeout TO (rpc/get-people)))
                    "Add"))))))
 
 (.replaceChild (.-body js/document)
@@ -348,72 +356,11 @@ cat <<EOF
    [javelin.core :refer [defc defc=]]
    [cljs.core.async.macros :refer [go]])
   (:require
-   [$project.shared :refer [port server db-port db-server db-name secure?]]
+   [$project.shared :refer [port server secure?]]
    [javelin.core :refer [cell]]
-   [cljs-http.client :as http]
-   [cljs-http.core :as hc]
    [chord.client :refer [ws-ch]]
    [clojure.string :as s]
-   [cemerick.url :refer [url url-encode]]
    [cljs.core.async :refer [<! >! close!] :as async]))
-
-;; CouchDB connection
-(def urls (str "http" (when secure? \s) "://" db-server ":" db-port "/"))
-(def urld (str urls db-name))
-(def urlq (str urld "/_find"))
-;; Merge with :json-params for authentication
-(def db-auth {:basic-auth {:username "NEVER-admin"
-                           :password "SET-THIS!"}})
-
-;; patch cljs-http to not mangle JSON
-(defn json-decode-raw
-  "JSON decode an object from \`s\`."
-  [s]
-  (let [v (when-not (s/blank? s) (js/JSON.parse s))]
-    (when (some? v)
-      (js->clj v))))
-
-(defn wrap-json-response
-  "Decode application/json responses."
-  [client]
-  (fn [request]
-    (-> #(http/decode-body % json-decode-raw "application/json" (:request-method request))
-        (async/map [(client request)]))))
-
-(def request (-> hc/request
-                 http/wrap-accept
-                 http/wrap-form-params
-                 http/wrap-multipart-params
-                 http/wrap-edn-params
-                 http/wrap-edn-response
-                 http/wrap-transit-params
-                 http/wrap-transit-response
-                 http/wrap-json-params
-                 wrap-json-response
-                 http/wrap-content-type
-                 http/wrap-query-params
-                 http/wrap-basic-auth
-                 http/wrap-oauth
-                 http/wrap-method
-                 http/wrap-url
-                 http/wrap-channel-from-request-map
-                 http/wrap-default-headers))
-
-(defn qpost
-  "Like #'request, but sets the :method and :url as appropriate."
-  [url & [req]]
-  (request (merge req {:method :post :url url})))
-
-
-(defn qput
-  "Like #'request, but sets the :method and :url as appropriate."
-  [url & [req]]
-  (request (merge req {:method :put :url url})))
-
-(defn qget
-  "Like #'request, but sets the :method and :url as appropriate."
-  [url & [req]]
-  (request (merge req {:method :get :url url})))
 
 ;; RPC launcher
 (defc error nil)
@@ -437,164 +384,20 @@ cat <<EOF
       (close! ws-channel)
       (swap! loading disj call))))
 
-;;; UUID generator of CouchDB
-(defc uuids nil)
-
-(defn get-uuid
-  "Returns \`n\` or 1 UUIDs in a vector."
-  [& n]
-  (go (let [result
-            (<! (qget (str "http" (when secure? \s) "://" db-server ":" db-port "/_uuids"
-                               (when (some? n) (str "?count=" (first n))))))]
-        (reset! uuids (get (:body result) "uuids")))))
-
-;;; CRUD: CREATE RETRIEVE UPDATE DELETE
-;;; CREATE
-(defn doc-add
-  "Add document to CouchDB and run callback for refresh."
-  [m & {cb :cb :or {cb identity}}]
-  (go (let [uuid (-> (<! (qget (str urls "/_uuids"))) :body (get "uuids") first)
-            result (<! (qput (str urld "/" uuid)
-                             (merge {:json-params m} db-auth)))]
-        (if-not (:success result)
-          (reset! error (:body result))
-          (cb)))))
-
-;;; RETRIEVE
-(defn query
-  "Fire Mango query to CouchDB.
-   JSON query \`m\` will be sent to DB. Result gets sent to cell \`cl\`.
-   An optional funtion \`:func\` is applied to the result set.
-   \`page\` is the page number to get. \`pages\` is a hash-map containing bookmarks.
-   Initialize that map as nil. \`cb\` is a callback function which will run after
-   successfull retrieval."
-  [m cl & {:keys [cb func page-size page pages] :or {cb identity, func identity, page-size 5000
-                                                     pages (cell :none)}}]
-  (go
-    (let [result
-          (<! (qpost urlq
-                     (merge
-                      {:json-params
-                       (merge m {:limit page-size
-                                 :bookmark (if (or (nil? page)
-                                                   (= page 0)) nil
-                                               (get-in @pages [:bookmarks page]))})}
-                      db-auth)))
-          next-bookmark (-> result :body (get "bookmark"))]
-      (when (or (= @pages :none) (empty? @pages)) (reset! pages {:bookmarks {0 nil}}))
-      (if (:success result)
-        (do (reset! cl (-> result :body (get "docs") func))
-            (when (and (not= @pages :none)
-                       (not (-> @pages :bookmarks vals set (contains? next-bookmark))))
-              (swap! pages assoc-in [:bookmarks (inc page)]
-                     next-bookmark))
-            (when (not= @pages :none) (swap! pages assoc :curpage (or page 0)))
-            (reset! error nil)
-            (cb))
-        (reset! error (:body result))))))
-
-;;; UPDATE
-(defn doc-update
-  "Update document in CouchDB and run callback for refresh."
-  [id m & {cb :cb :or {cb identity}}]
-  (go (let [old (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
-                                           db-auth)))
-                    :body (get "docs") first)
-            result (<! (qput (str urld "/" id)
-                             (merge {:json-params (merge old m)} db-auth)))]
-        (if-not (:success result)
-          (reset! error (:body result))
-          (cb)))))
-
-;;; ATTACHMENT
-
-(defn doc-attach
-  "Attach file to document in CouchDB and run callback for refresh."
-  [id f fname & {:keys [meta-info cb] :or {cb identity}}]
-  (go (let [old (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
-                                           db-auth)))
-                    :body (get "docs") first)
-            rev (get old "_rev")
-            meta-old (get old "meta-info")
-            fail? #(-> meta-old keys set (contains? fname))
-            meta-new (assoc meta-old fname meta-info)
-            result (or (fail?) (-> (<! (qput (str urld "/" id "/" (url-encode fname) "?rev=" rev)
-                                             (merge {:multipart-params [[fname [f fname]]]} db-auth)))))]
-        (if (:success result)
-          (doc-update id {"meta-info" meta-new} :cb cb)
-          (reset! error (or (:body result) (str "Dezelfde bestandsnaam bestaat al: " fname)))))))
-
-(defn doc-del-attach
-  "Delete attachment"
-  [id fname & {cb :cb :or {cb identity}}]
-  (go (let [old (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
-                                           db-auth)))
-                    :body (get "docs") first)
-            rev (get old "_rev")
-            meta-old (get old "meta-info")
-            meta-new (dissoc meta-old fname)
-            result (<! (http/delete (str urld "/" id "/" (url-encode fname))
-                                    (merge {:query-params {"rev" rev}} db-auth)))]
-        (if (:success result)
-          (doc-update id {"meta-info" meta-new} :cb cb)
-          (reset! error (:body result))))))
-
-(defn doc-list-attach
-  "List attachments"
-  [id cl]
-  (go (let [result (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
-                                              db-auth)))
-                       :body (get "docs") first (get "_attachments") keys vec)]
-        (reset! cl result))))
-
-;;; DELETE
-(defn doc-delete
-  "Delete document in CouchDB and run callback for refresh."
-  [id & {cb :cb :or {cb identity}}]
-  (go (let [rev (-> (<! (qpost urlq (merge {:json-params {:selector {"_id" id}}}
-                                           db-auth)))
-                    :body (get "docs") first (get "_rev"))
-            result (<! (http/delete (str urld "/" id "?rev=" rev) db-auth))]
-        (if-not (:success result)
-          (reset! error (:body result))
-          (cb)))))
-
 ;; segmented state + lenses
 ;; reduces load due to state modifications and allows easier refactoring
 (def state (cell {}))
-(defc screen nil)
+(defc last-result nil)
 
 (defc= file-data    (get-in state [:io :file-data]) #(swap! state assoc-in [:io :file-data] %))
-(defc= people       (get-in state [:io :people]) #(swap! state assoc-in [:io :people] %))
-(defc= people-pages (get-in state [:ui :people-pages]) #(swap! state assoc-in [:ui :people-pages] %))
+(defc= people       (get-in state [:io :people])    #(swap! state assoc-in [:io :people] %))
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
 (defn get-file [& params] (launch-fn 'get-file file-data params))
-
-;; Database
-
-(defn get-people
-  [& [page]]
-  (query {"selector"
-          {"type" "person"}
-          "sort" [{"name" "asc"}]}
-         people
-         :page-size 4
-         :pages people-pages
-         :page  page))
-
-(defn add-db [name age] (doc-add {"type" "person"
-                                  "name" name
-                                  "age" age}
-                                 :cb (fn []
-                                       (reset! people-pages {})
-                                       (get-people))))
-
-(defn del-db [id] (doc-delete id :cb (fn []
-                                       (reset! people-pages {})
-                                       (get-people))))
-
+(defn get-people [& params] (launch-fn 'get-people people      params))
+(defn add-db     [& params] (launch-fn 'add-db     last-result params))
+(defn del-db     [& params] (launch-fn 'del-db     last-result params))
 EOF
 ) > src/cljs/$projectdir/rpc.cljs
 
@@ -605,30 +408,8 @@ cat <<EOF
 (def secure? false)
 (def server "$hostname")
 (def port 8000)
-
-(def db-server server)
-(def db-port (if secure? 6984 5984))
-(def db-name "sample")
 EOF
 ) > src/cljc/$projectdir/shared.cljc
-
-mkdir .clj-kondo
-
-(
-cat <<EOF
-{:lint-as {hoplon.core/defelem cljs.core/defn
-           $project.api/defrpc cljs.core/defn
-           hoplon.core/for-tpl cljs.core/for
-           hoplon.core/if-tpl cljs.core/if
-           hoplon.core/case-tpl cljs.core/case
-           hoplon.core/cond-tpl cljs.core/cond
-           javelin.core/defc cljs.core/def
-           javelin.core/cell-let cljs.core/let
-           javelin.core/defc= cljs.core/def}
- :linters {:invalid-arity {:level :off}}
- :output  {:exclude-files ["target"]}}
-EOF
-) > .clj-kondo/config.edn
 
 mkdir dev-doc
 
@@ -846,3 +627,4 @@ fossil add .
 fossil ci -m "$project"
 fossil set ignore-glob "target/"
 clojure -M:prod
+

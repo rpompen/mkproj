@@ -305,7 +305,8 @@ cat <<EOF
                                  button form for-tpl fieldset legend]]
             [hoplon.jquery]
             [javelin.core :refer [cell cell= dosync]]
-            [$project.rpc :as rpc]))
+            [$project.rpc :as rpc]
+            [$project.shared :refer [timeout]))
 
 (def TO 800)
 (with-init! (rpc/get-people))
@@ -325,7 +326,7 @@ cat <<EOF
                    (input :type "text" :value naam :disabled true)
                    (input :type "text" :value leeftijd :disabled true)
                    (button :type "button" :click (fn [] (rpc/del-db @id)
-                                                   (with-timeout TO (rpc/get-people))) "Erase"))))
+                                                   (timeout)) "Erase"))))
         (let [name (cell nil)
               age (cell nil)]
           (fieldset
@@ -341,7 +342,7 @@ cat <<EOF
                             (rpc/add-db @name @age)
                             (reset! name nil)
                             (reset! age nil)
-                            (with-timeout TO (rpc/get-people)))
+                            (timeout))
                    "Add"))))))
 
 (.replaceChild (.-body js/document)
@@ -408,6 +409,10 @@ cat <<EOF
 (def secure? false)
 (def server "$hostname")
 (def port 8000)
+
+(def TO 800)
+
+#?(:cljs (defn- timeout [] (with-timeout TO (rpc/get-people))))
 EOF
 ) > src/cljc/$projectdir/shared.cljc
 

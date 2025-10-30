@@ -305,10 +305,11 @@ cat <<EOF
                                  button form for-tpl fieldset legend]]
             [hoplon.jquery]
             [javelin.core :refer [cell cell= dosync]]
-            [$project.rpc :as rpc]
-            [$project.shared :refer [timeout]))
+            [$project.rpc :as rpc]))
 
 (def TO 800)
+(defn- timeout [] (with-timeout TO (rpc/get-people)))
+
 (with-init! (rpc/get-people))
 
 (defelem main [_ _]
@@ -409,10 +410,6 @@ cat <<EOF
 (def secure? false)
 (def server "$hostname")
 (def port 8000)
-
-(def TO 800)
-
-#?(:cljs (defn- timeout [] (with-timeout TO (rpc/get-people))))
 EOF
 ) > src/cljc/$projectdir/shared.cljc
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ©2025 Roel Pompen
 
-hostname=desktop-roel
+hostname=$(hostname)
 
 if ! ( type -f fossil ) > /dev/null
 then
@@ -119,7 +119,7 @@ EOF
 cat <<EOF
 {:deps {hoplon/hoplon {:mvn/version "7.5.0"}
         org.clojure/clojure {:mvn/version "1.12.3"}
-        org.clojure/clojurescript {:mvn/version "1.12.42"}
+        org.clojure/clojurescript {:mvn/version "1.12.38"}
         org.clojure/core.async {:mvn/version "1.8.741"}
         http-kit/http-kit {:mvn/version "2.8.1"}
         compojure/compojure {:mvn/version "1.7.2"}
@@ -192,7 +192,7 @@ cat <<EOF
 
 (cb/open-cupboard! "store")
 
-(cb/defpersist persoon ((:id :index :unique) (:naam :index :any) (:leeftijd :index :any)))
+(cb/defpersist person ((:id :index :unique) (:name :index :any) (:age :index :any)))
 
 ;; RPC
 
@@ -200,26 +200,22 @@ cat <<EOF
   \`(let [e# nil]
      (defn ~f ~args (try ~@body (catch Exception e# {:castraexpt (ex-message e#)})))))
 
-(defrpc get-file [naam]
-  (str naam " " (edn/read-string (slurp "data/items.edn"))))
+(defrpc get-file [name]
+  (str name " " (edn/read-string (slurp "data/items.edn"))))
 
-(defrpc get-people [] (cb/query :shelf-name "personen"))
+(defrpc get-people [] (cb/query :shelf-name "people"))
 
-(defrpc add-db
+(defrpc add-person
   [name age]
-  (cb/make-instance persoon [(java.util.UUID/randomUUID) name age] :shelf-name "personen"))
+  (cb/make-instance person [(java.util.UUID/randomUUID) name age] :shelf-name "people")
+  :refresh)
 
-(defrpc del-db
+(defrpc del-person
   [id]
   (cb/query (= :id id)
-            :shelf-name "personen"
-            :callback #(cb/delete % :shelf-name "personen")))
-
-(comment
-
-  (add-db "Roel" 52)
-
-  )
+            :shelf-name "people"
+            :callback #(cb/delete % :shelf-name "people"))
+  :refresh)
 EOF
 )  > src/clj/$projectdir/api.clj
 
@@ -291,8 +287,6 @@ cat <<EOF
       (wrap-session {:store (cookie-store {:key (byte-array (map int "a 16-byte secret"))})})
       (wrap-defaults api-defaults)
       (wrap-resource "public")
-      (wrap-cors :access-control-allow-origin (re-pattern (str "https://" server "/"))
-                 :access-control-allow-methods [:get :put :post :delete])
       (wrap-content-type)
       (wrap-not-modified)))
 EOF
@@ -301,33 +295,30 @@ EOF
 (
 cat <<EOF
 (ns $project.core
-  (:require [hoplon.core :refer [defelem div h1 p text input with-init! with-timeout
-                                 button form for-tpl fieldset legend]]
+  (:require [hoplon.core :refer [defelem div h1 p text input with-init!
+                                 button form for-tpl fieldset legend case-tpl]]
             [hoplon.jquery]
             [javelin.core :refer [cell cell= dosync]]
-            [$project.rpc :as rpc]))
-
-(def TO 800)
-(defn- timeout [] (with-timeout TO (rpc/get-people)))
+            [$project.rpc :as rpc]
+            [$project.widgets :as w]))
 
 (with-init! (rpc/get-people))
 
-(defelem main [_ _]
+(defelem application [_ _]
   (div :id "app"
-       (h1 "Sample")
+       (h1 "Example")
        "Gets data from file via JVM backend. "
-       (button :type "button" :click #(rpc/get-file "Henk") "Get file")
+       (button :type "button" :click #(rpc/get-file "Joe") "Get file")
        (p (text "~{rpc/file-data}"))
-       (text "Gets items from database")
+       (text "Gets items from database AND ~{rpc/db-refresh}")
        (form
         (fieldset
          (legend "People")
-         (for-tpl [{:keys [id naam leeftijd]} rpc/people]
+         (for-tpl [{:keys [id name age]} rpc/people]
                   (div
-                   (input :type "text" :value naam :disabled true)
-                   (input :type "text" :value leeftijd :disabled true)
-                   (button :type "button" :click (fn [] (rpc/del-db @id)
-                                                   (timeout)) "Erase"))))
+                   (input :type "text" :value name :disabled true)
+                   (input :type "text" :value age :disabled true)
+                   (button :type "button" :click (fn [] (rpc/del-person @id)) "Erase"))))
         (let [name (cell nil)
               age (cell nil)]
           (fieldset
@@ -340,11 +331,22 @@ cat <<EOF
                   :change #(reset! age (int @%)))
            (button :type "button"
                    :click (fn []
-                            (rpc/add-db @name @age)
+                            (rpc/add-person @name @age)
                             (reset! name nil)
-                            (reset! age nil)
-                            (timeout))
+                            (reset! age nil))
                    "Add"))))))
+
+(defelem login [_ _]
+  (div (w/field :lbl "Password")))
+
+(defelem main [_ _]
+  (div :id "app"
+       (button :type "button" :click #(reset! rpc/view-mode :application) "app")
+       (button :type "button" :click #(reset! rpc/view-mode :login) "login")
+       (case-tpl rpc/view-mode
+                 :application (application)
+                 :login (login))))
+
 
 (.replaceChild (.-body js/document)
                (main) (.getElementById js/document "app"))
@@ -389,17 +391,28 @@ cat <<EOF
 ;; segmented state + lenses
 ;; reduces load due to state modifications and allows easier refactoring
 (def state (cell {}))
-(defc last-result nil)
+(defc db-refresh nil)
 
+(defc= view-mode    (get-in state [:ui :view-mode]) #(swap! state assoc-in [:ui :view-mode] %))
 (defc= file-data    (get-in state [:io :file-data]) #(swap! state assoc-in [:io :file-data] %))
 (defc= people       (get-in state [:io :people])    #(swap! state assoc-in [:io :people] %))
 
 ;; RPC to backend
 ;; Cell data is overwritten, not merged
-(defn get-file [& params] (launch-fn 'get-file file-data params))
-(defn get-people [& params] (launch-fn 'get-people people      params))
-(defn add-db     [& params] (launch-fn 'add-db     last-result params))
-(defn del-db     [& params] (launch-fn 'del-db     last-result params))
+(defn get-file    [& params] (launch-fn 'get-file    file-data  params))
+(defn get-people  [& params] (launch-fn 'get-people  people     params))
+(defn add-person  [& params] (launch-fn 'add-person  db-refresh params))
+(defn del-person  [& params] (launch-fn 'del-person  db-refresh params))
+
+(defn refresh [] (get-people))
+
+(add-watch db-refresh :refresh
+           (fn [k r o n] (when (and (nil? o)
+                                   (= n :refresh))
+                          (reset! db-refresh nil)
+                          (refresh))))
+
+(reset! view-mode :application)
 EOF
 ) > src/cljs/$projectdir/rpc.cljs
 

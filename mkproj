@@ -207,7 +207,7 @@ cat <<EOF
 
 (defrpc add-person
   [name age]
-  (cb/make-instance person [(java.util.UUID/randomUUID) name age] :shelf-name "people")
+  (cb/make-instance person [(random-uuid) name age] :shelf-name "people")
   :refresh)
 
 (defrpc del-person

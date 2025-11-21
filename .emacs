@@ -7,12 +7,10 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(custom-enabled-themes '(leuven))
- '(delete-selection-mode nil)
  '(inhibit-startup-echo-area-message "rpompen")
  '(inhibit-startup-screen t)
  '(initial-buffer-choice 'eshell)
  '(initial-scratch-message nil)
- '(ispell-dictionary nil)
  '(menu-bar-mode nil)
  '(package-selected-packages
    '(cider company markdown-mode paredit rainbow-delimiters vc-fossil))
@@ -47,8 +45,7 @@
 (add-hook 'cider-repl-mode-hook 'rainbow-delimiters-mode-enable)
 (add-hook 'cider-repl-mode-hook 'paredit-mode)
 (add-hook 'cider-repl-mode-hook 'fancify)
-(add-hook 'yaml-mode-hook #'ansible-mode)
+
 (setq backup-directory-alist '((".*" . "~/.Trash")))
-(setq password-cache-expiry nil)
 (setq auth-sources '("~/.authinfo.gpg"))
 (setq epa-pinentry-mode 'loopback)

@@ -10,7 +10,7 @@ It aims to provide a template for a scalable yet extremely simple project with a
 * example using integrated Berkeley Database JE
 * dependency updater
 * uberjar packager
-* ±550 lines of code total
+* ±650 lines of code total
 
 The generated README.md gives a full explanation.
 

@@ -61,13 +61,13 @@ This project shows several things:
 4. Uses integrated Berkeley DB JE via cupboard
 5. initialized Fossil repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 120 nodes with additional 100 nodes in the widgets file!)
-8. extremely small project size (±250 lines of code **and** project files, not counting README and predefined widgets, which add ±280 lines)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just 130 nodes with additional 100 nodes in the widgets file!)
+8. extremely small project size (±250 lines of code **and** project files, not counting README and predefined widgets, which add ±200 lines)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
 11. front-end code is compiled to javascript and delivered via JVM web-server
 12. JS code size while developing: less than 5MB
-13. JS code size after compiling for production: ±630KB (less than 165KB gzipped)
+13. JS code size after compiling for production: ±400KB (±105KB gzipped)
 14. segmented state map using lenses (reduces events and facilitates refactoring)
 
 ## how to develop

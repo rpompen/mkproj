@@ -61,13 +61,13 @@ This project shows several things:
 4. Uses integrated Berkeley DB JE via cupboard
 5. initialized Fossil repository
 6. one language for client (browser) and server code
-7. extremely low complexity (the Abstract Syntax Tree of the code contains just under 120 nodes with additional 100 nodes in the widgets file!)
-8. extremely small project size (±250 lines of code **and** project files, not counting README and predefined widgets, which add ±280 lines)
+7. extremely low complexity (the Abstract Syntax Tree of the code contains just 130 nodes with additional 100 nodes in the widgets file!)
+8. extremely small project size (±250 lines of code **and** project files, not counting README and predefined widgets, which add ±200 lines)
 9. package entire project into 1 file (.jar) to run everywhere
 10. backend is JVM with a web-server and server-side code
 11. front-end code is compiled to javascript and delivered via JVM web-server
 12. JS code size while developing: less than 5MB
-13. JS code size after compiling for production: ±630KB (less than 165KB gzipped)
+13. JS code size after compiling for production: ±400KB (±105KB gzipped)
 14. segmented state map using lenses (reduces events and facilitates refactoring)
 
 ## how to develop
@@ -172,7 +172,9 @@ EOF
 (
 cat <<EOF
 h1 {
-  color: #1be9df;
+  color: orchid;
+  background-color: khaki;
+  display: inline-block;
 }
 
 form {
@@ -192,7 +194,7 @@ cat <<EOF
 
 (cb/open-cupboard! "store")
 
-(cb/defpersist person ((:id :index :unique) (:name :index :any) (:age :index :any)))
+(cb/defpersist person ((:id :index :unique) (:challenge :index :unique) (:name :index :any) (:age :index :any)))
 
 ;; RPC
 
@@ -207,7 +209,7 @@ cat <<EOF
 
 (defrpc add-person
   [name age]
-  (cb/make-instance person [(random-uuid) name age] :shelf-name "people")
+  (cb/make-instance person [(random-uuid) "" name age] :shelf-name "people")
   :refresh)
 
 (defrpc del-person
@@ -216,6 +218,20 @@ cat <<EOF
             :shelf-name "people"
             :callback #(cb/delete % :shelf-name "people"))
   :refresh)
+(defrpc authorize
+  [user passwd]
+  (seq (cb/query (= :challenge (str passwd user))
+                 :shelf-name "people")))
+
+(defn- init [user pwd age]
+  (cb/make-instance person [(random-uuid) (str pwd user) user age]
+                    :shelf-name "people"))
+
+(comment
+
+  (init "testuser" "testing" 1)
+
+  )
 EOF
 )  > src/clj/$projectdir/api.clj
 
@@ -295,7 +311,7 @@ EOF
 (
 cat <<EOF
 (ns $project.core
-  (:require [hoplon.core :refer [defelem div h1 p text input with-init!
+  (:require [hoplon.core :refer [defelem div h1 p text input with-init! br if-tpl
                                  button form for-tpl fieldset legend case-tpl]]
             [hoplon.jquery]
             [javelin.core :refer [cell cell= dosync]]
@@ -304,49 +320,60 @@ cat <<EOF
 
 (with-init! (rpc/get-people))
 
+(defelem demo [_ _]
+  (div
+   (h1 "Voorbeeld")
+   (p "Gets data from file via JVM backend. ")
+   (button :type "button" :click #(rpc/get-file "Joe") "Get file")
+   (p (text "~{rpc/file-data}"))
+   (text "Gets items from database AND ~{rpc/db-refresh}")
+   (form
+    (fieldset
+     (legend "People")
+     (for-tpl [{:keys [id name age]} rpc/people]
+       (div
+        (input :type "text" :value name :disabled true)
+        (input :type "text" :value age :disabled true)
+        (button :type "button" :click (fn [] (rpc/del-person @id)) "Erase"))))
+    (let [name (cell nil)
+          age (cell nil)]
+      (fieldset
+       (legend "New person")
+       (input :type "text" :placeholder "name"
+              :value name
+              :change #(reset! name @%))
+       (input :type "number" :placeholder "age"
+              :value age
+              :change #(reset! age (int @%)))
+       (button :type "button"
+               :click (fn []
+                        (rpc/add-person @name @age)
+                        (reset! name nil)
+                        (reset! age nil))
+               "Add"))))))
+
 (defelem application [_ _]
-  (div :id "app"
-       (h1 "Example")
-       "Gets data from file via JVM backend. "
-       (button :type "button" :click #(rpc/get-file "Joe") "Get file")
-       (p (text "~{rpc/file-data}"))
-       (text "Gets items from database AND ~{rpc/db-refresh}")
-       (form
-        (fieldset
-         (legend "People")
-         (for-tpl [{:keys [id name age]} rpc/people]
-                  (div
-                   (input :type "text" :value name :disabled true)
-                   (input :type "text" :value age :disabled true)
-                   (button :type "button" :click (fn [] (rpc/del-person @id)) "Erase"))))
-        (let [name (cell nil)
-              age (cell nil)]
-          (fieldset
-           (legend "New person")
-           (input :type "text" :placeholder "name"
-                  :value name
-                  :change #(reset! name @%))
-           (input :type "number" :placeholder "age"
-                  :value age
-                  :change #(reset! age (int @%)))
-           (button :type "button"
-                   :click (fn []
-                            (rpc/add-person @name @age)
-                            (reset! name nil)
-                            (reset! age nil))
-                   "Add"))))))
+  (div (case-tpl rpc/view-mode
+         :application (demo))))
 
 (defelem login [_ _]
-  (div (w/field :lbl "Password")))
+  (let [user (cell nil)
+        pwd  (cell nil)]
+    (fieldset
+     (legend "Login")
+     (input :type "text" :placeholder "User" :value user :change #(reset! user @
+%))(br)
+     (input :type "text" :placeholder "Password" :value pwd :change #(reset! pwd
+ @%))(br)
+     (button :type "button" :click (fn [] (rpc/authorize @user @pwd)
+                                     (reset! user nil)
+                                     (reset! pwd nil)) "Login"))))
 
 (defelem main [_ _]
   (div :id "app"
-       (button :type "button" :click #(reset! rpc/view-mode :application) "app")
-       (button :type "button" :click #(reset! rpc/view-mode :login) "login")
-       (case-tpl rpc/view-mode
-                 :application (application)
-                 :login (login))))
-
+       (if-tpl (cell= (nil? rpc/auth))
+         (login)
+         (application))))
 
 (.replaceChild (.-body js/document)
                (main) (.getElementById js/document "app"))
@@ -392,6 +419,7 @@ cat <<EOF
 ;; reduces load due to state modifications and allows easier refactoring
 (def state (cell {}))
 (defc db-refresh nil)
+(defc auth nil)
 
 (defc= view-mode    (get-in state [:ui :view-mode]) #(swap! state assoc-in [:ui :view-mode] %))
 (defc= file-data    (get-in state [:io :file-data]) #(swap! state assoc-in [:io :file-data] %))
@@ -401,10 +429,15 @@ cat <<EOF
 ;; Cell data is overwritten, not merged
 (defn get-file    [& params] (launch-fn 'get-file    file-data  params))
 (defn get-people  [& params] (launch-fn 'get-people  people     params))
+
+;; Database mutation calls: #'refresh should narrow the xact scope
 (defn add-person  [& params] (launch-fn 'add-person  db-refresh params))
 (defn del-person  [& params] (launch-fn 'del-person  db-refresh params))
+(defn authorize   [& params] (launch-fn 'authorize   auth       params))
 
 (defn refresh [] (get-people))
+
+(defn logout [] (reset! auth nil))
 
 (add-watch db-refresh :refresh
            (fn [k r o n] (when (and (nil? o)
@@ -438,9 +471,8 @@ cat <<EOF
    [hoplon.svg :as svg]
    [javelin.core :refer [cell cell=]]))
 
-;;; In this fn the rpc/screen cell contains a screen full of fields.
-;;; Such a screen would be empty if a key "_id" would not be found...
 (defelem field
+  "Present a field labeled \`lbl\` which stores data in cell \`source\`."
   [{:keys [source lbl id type set-once?]} _]
   (let [mail? (re-seq #"(?i).*mail.*" lbl)
         tel?  (re-seq #"(?i).*(foon|phone).*" lbl)

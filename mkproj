@@ -361,10 +361,8 @@ cat <<EOF
         pwd  (cell nil)]
     (fieldset
      (legend "Login")
-     (input :type "text" :placeholder "User" :value user :change #(reset! user @
-%))(br)
-     (input :type "text" :placeholder "Password" :value pwd :change #(reset! pwd
- @%))(br)
+     (input :type "text" :placeholder "User" :value user :change #(reset! user @%))(br)
+     (input :type "text" :placeholder "Password" :value pwd :change #(reset! pwd @%))(br)
      (button :type "button" :click (fn [] (rpc/authorize @user @pwd)
                                      (reset! user nil)
                                      (reset! pwd nil)) "Login"))))

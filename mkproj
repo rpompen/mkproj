@@ -294,10 +294,10 @@ EOF
 (
 cat <<EOF
 (ns $project.core
-  (:require [hoplon.core :as h :refer [defelem div h1 p text input with-init!
-                                       button form for-tpl fieldset legend]]
+  (:require [hoplon.core :refer [defelem div h1 p text input with-init!
+                                 button form for-tpl fieldset legend]]
             [hoplon.jquery]
-            [javelin.core :as j :refer [cell cell= dosync]]
+            [javelin.core :refer [cell cell= dosync]]
             [$project.rpc :as rpc]))
 
 (with-init! (rpc/get-people))

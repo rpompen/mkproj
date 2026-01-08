@@ -149,6 +149,8 @@ cat <<EOF
         ring-cors/ring-cors {:mvn/version "0.1.13"}
         ring/ring-defaults {:mvn/version "0.7.0"}
         jarohen/chord {:mvn/version "0.8.1"}
+        com.cognitect/transit-clj {:mvn/version "1.0.333"}
+        com.cognitect/transit-cljs {:mvn/version "0.8.280"}
         com.cemerick/url {:mvn/version "0.1.1"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
  :paths ["src/clj" "src/cljs" "src/cljc" "target" "resources"]

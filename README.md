@@ -14,4 +14,4 @@ It aims to provide a template for a scalable yet extremely simple project with a
 
 The generated README.md gives a full explanation.
 
-©2025 Roel Pompen
+©2026 Roel Pompen

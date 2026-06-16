@@ -435,7 +435,7 @@ cat <<EOF
 (defn authorize   [& params] (launch-fn 'authorize   auth       params))
 
 (defmulti  refresh deref)
-(defmethod refresh :application [view-mode] (get-people)
+(defmethod refresh :application [view-mode] (get-people))
 
 (defn logout [] (reset! auth nil))
 

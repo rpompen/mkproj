@@ -434,7 +434,8 @@ cat <<EOF
 (defn del-person  [& params] (launch-fn 'del-person  db-refresh params))
 (defn authorize   [& params] (launch-fn 'authorize   auth       params))
 
-(defn refresh [] (get-people))
+(defmulti  refresh deref)
+(defmethod refresh :application [view-mode] (get-people)
 
 (defn logout [] (reset! auth nil))
 
@@ -442,7 +443,7 @@ cat <<EOF
            (fn [k r o n] (when (and (nil? o)
                                    (= n :refresh))
                           (reset! db-refresh nil)
-                          (refresh))))
+                          (refresh view-mode))))
 
 (reset! view-mode :application)
 (reset! db-refresh :refresh)

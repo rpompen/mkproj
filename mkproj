@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ©2025 Roel Pompen
+# ©2026 Roel Pompen
 
 hostname=$(hostname)
 
@@ -104,7 +104,7 @@ http://clojurescript.org/
 http://hoplon.io/  
 https://github.com/jarohen/chord  
 
-©2025 Roel Pompen
+©2026 Roel Pompen
 EOF
 ) > README.md
 
@@ -129,7 +129,7 @@ cat <<EOF
         ring-cors/ring-cors {:mvn/version "0.1.13"}
         ring/ring-defaults {:mvn/version "0.7.0"}
         jarohen/chord {:mvn/version "0.8.1"}
-	com.cognitect/transit-clj {:mvn/version "1.1.357"}
+        com.cognitect/transit-clj {:mvn/version "1.1.357"}
         com.cognitect/transit-cljs {:mvn/version "0.8.280"}
         danlentz/clj-uuid {:mvn/version "0.2.5"}
         javax.xml.bind/jaxb-api {:mvn/version "2.4.0-b180830.0359"}}
@@ -222,10 +222,12 @@ cat <<EOF
             :shelf-name "people"
             :callback #(cb/delete % :shelf-name "people"))
   :refresh)
+
 (defrpc authorize
   [user passwd]
-  (seq (cb/query (= :challenge (str passwd user))
-                 :shelf-name "people")))
+  (-> (cb/query (= :challenge (str passwd user)) :shelf-name "people")
+      first
+      (dissoc :challenge)))
 
 (defn- init [user pwd age]
   (cb/make-instance person [(uuid/v7) (str pwd user) user age]
